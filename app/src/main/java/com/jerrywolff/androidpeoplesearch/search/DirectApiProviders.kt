@@ -70,21 +70,28 @@ class BingPublicReferencesProvider(
         if (refinedSearch.isBlank()) return emptyList()
         val searches = listOf(
             refinedSearch to pageDepth,
-            query.bingIdentityQuery(linkedInOnly) to 1,
+            query.bingIdentityQuery(linkedInOnly) to pageDepth,
         ).distinctBy { it.first }
-        return buildList {
-            searches.forEach { (search, pages) ->
-                for (pageIndex in 0 until pages) {
+        val results = mutableListOf<PersonSearchResult>()
+        var lastFailure: Throwable? = null
+        searches.forEach { (search, pages) ->
+            for (pageIndex in 0 until pages) {
+                try {
                     val first = pageIndex * 10 + 1
                     val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
                     val items = parseRssItems(client.get(url))
                     items.filterNot { it.url.isProhibitedReference() }.forEach { item ->
-                        add(result(query, item.url.hashCode().toString(), item.title, cleanHtml(item.description), item.url))
+                        results += result(query, item.url.hashCode().toString(), item.title, cleanHtml(item.description), item.url)
                     }
                     if (items.size < 10) break
+                } catch (failure: Throwable) {
+                    lastFailure = failure
+                    break
                 }
             }
-        }.distinctBy { it.url }
+        }
+        if (results.isEmpty()) lastFailure?.let { throw it }
+        return results.distinctBy { it.url }
     }
 }
 
@@ -113,7 +120,9 @@ private fun PeopleSearchQuery.bingReferenceQuery(linkedInOnly: Boolean): String 
     state,
     country,
     company,
+    emailDomain.takeIf(String::isNotBlank)?.let { "site:$it" }.orEmpty(),
     username,
+    freeText,
     "site:linkedin.com/in".takeIf { linkedInOnly }.orEmpty(),
 ).filter(String::isNotBlank).joinToString(" ")
 

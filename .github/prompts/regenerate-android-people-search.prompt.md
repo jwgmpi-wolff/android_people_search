@@ -406,7 +406,7 @@ Behavior:
 6. Map other exceptions to `Unavailable`.
 7. Require every requested name token or the compact full name in source title, description, or URL. If no name was supplied, require the supplied username.
 8. Use populated company, city, county, state, domain, country, username, and free-text fields to refine provider requests and add confidence only when source-observed. Do not reject an exact-name record merely because an index snippet omits a populated refinement.
-9. For Bing public web and LinkedIn references, run the populated-field query for the configured page depth plus one exact-identity fallback page, then deduplicate URLs.
+9. For Bing public web and LinkedIn references, include domain and free-text context in the populated-field query, run both that query and the exact-identity fallback for the configured page depth, preserve successful earlier records if a later request fails, then deduplicate URLs.
 10. Never inject submitted fields into result descriptions or confidence evidence.
 11. Deduplicate each provider result list by URL and report counts from the exact visible per-provider lists.
 12. Merge and deduplicate globally by URL.

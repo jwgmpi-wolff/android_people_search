@@ -152,6 +152,55 @@ class DirectApiProviderTest {
     }
 
     @Test
+    fun bingUsesDomainAndAssistantContextInRefinedQuery() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val provider = BingPublicReferencesProvider(
+            client = PublicApiClient { url ->
+                requestedUrls += url
+                "<?xml version=\"1.0\"?><rss><channel/></rss>"
+            },
+        )
+
+        provider.search(
+            PeopleSearchQuery(
+                fullName = "Alexis Wolff",
+                emailDomain = "example.gov",
+                freeText = "advisory board",
+            ),
+            pageDepth = 1,
+        )
+
+        assertTrue(requestedUrls.first().contains("site%3Aexample.gov"))
+        assertTrue(requestedUrls.first().contains("advisory%20board"))
+        assertTrue(requestedUrls.last().contains("example.gov").not())
+    }
+
+    @Test
+    fun bingKeepsSuccessfulRecordsWhenFallbackRequestFails() = runBlocking {
+        var requestCount = 0
+        val provider = BingPublicReferencesProvider(
+            client = PublicApiClient {
+                requestCount += 1
+                if (requestCount == 1) {
+                    """<?xml version="1.0"?><rss><channel>
+                        <item><title>Alexis Wolff - Advisory Board</title><link>https://example.gov/alexis-wolff</link><description>Official public record</description></item>
+                    </channel></rss>"""
+                } else {
+                    throw PublicApiHttpException(429)
+                }
+            },
+        )
+
+        val results = provider.search(
+            PeopleSearchQuery(fullName = "Alexis Wolff", company = "Example"),
+            pageDepth = 3,
+        )
+
+        assertEquals(2, requestCount)
+        assertEquals("https://example.gov/alexis-wolff", results.single().url)
+    }
+
+    @Test
     fun bingPublicReferencesPaginatesRssResults() = runBlocking {
         val requestedUrls = mutableListOf<String>()
         val client = PublicApiClient { url ->
@@ -168,15 +217,16 @@ class DirectApiProviderTest {
             pageDepth = 2,
         )
 
-        assertEquals(3, requestedUrls.size)
+        assertEquals(4, requestedUrls.size)
         assertTrue(requestedUrls[1].contains("first=11"))
-        assertTrue(requestedUrls.last().contains("Seattle").not())
-        assertEquals(30, results.size)
+        assertTrue(requestedUrls[2].contains("Seattle").not())
+        assertTrue(requestedUrls.last().contains("first=11"))
+        assertEquals(40, results.size)
         assertTrue(results.all { it.category == SourceCategory.PUBLIC_RECORDS })
     }
 
     @Test
-    fun bingLinkedInFallsBackToExactNameWhenRefinedQueryHasNoRecords() = runBlocking {
+    fun bingLinkedInPaginatesExactNameFallbackWhenRefinedQueryHasNoRecords() = runBlocking {
         val requestedUrls = mutableListOf<String>()
         val provider = BingPublicReferencesProvider(
             linkedInOnly = true,
@@ -184,10 +234,14 @@ class DirectApiProviderTest {
                 requestedUrls += url
                 if (url.contains("Microsoft")) {
                     "<?xml version=\"1.0\"?><rss><channel/></rss>"
-                } else {
+                } else if (url.contains("first=11")) {
                     """<?xml version="1.0"?><rss><channel>
                         <item><title>Alexis Wolff - U.S. Diplomat | LinkedIn</title><link>https://www.linkedin.com/in/alexiswolff</link><description>Public LinkedIn profile</description></item>
                     </channel></rss>"""
+                } else {
+                    (1..10).joinToString("", "<?xml version=\"1.0\"?><rss><channel>", "</channel></rss>") { item ->
+                        "<item><title>Other profile $item</title><link>https://www.linkedin.com/in/other-$item</link><description>Public LinkedIn profile</description></item>"
+                    }
                 }
             },
         )
@@ -197,10 +251,11 @@ class DirectApiProviderTest {
             pageDepth = 3,
         )
 
-        assertEquals(2, requestedUrls.size)
+        assertEquals(3, requestedUrls.size)
         assertTrue(requestedUrls.first().contains("Microsoft"))
-        assertTrue(requestedUrls.last().contains("Microsoft").not())
-        assertEquals("https://www.linkedin.com/in/alexiswolff", results.single().url)
+        assertTrue(requestedUrls[1].contains("Microsoft").not())
+        assertTrue(requestedUrls.last().contains("first=11"))
+        assertTrue(results.any { it.url == "https://www.linkedin.com/in/alexiswolff" })
     }
 
     @Test
