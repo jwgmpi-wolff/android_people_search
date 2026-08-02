@@ -22,6 +22,7 @@ adb install -r android-people-search-1.0.0.apk
 - Kotlin, Jetpack Compose, Material 3, and Navigation Compose
 - Public web, profile, professional, news, domain, username, and government-record search targets
 - Every search automatically runs all compliant direct-record and public-index providers and shows a final record count for each source
+- Every search is a fresh live retrieval: HTTP caches are bypassed and prior cards, counts, and summaries are cleared before requests begin
 - County filtering, U.S. state and country selectors, and an on-device search-assistant chat for applying conversational specifics
 - A persisted 1–5 page-depth setting controls direct retrieval (up to 20 records per page and 100 per source)
 - Returned candidates must contain the requested identity; populated details refine provider queries and rank source-observed matches without hiding exact-name records whose snippets omit those details

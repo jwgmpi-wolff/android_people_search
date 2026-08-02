@@ -1,6 +1,6 @@
 # Public source matrix
 
-All active providers have `Paid = No` and `Auth = No`. Paginated direct API providers retrieve the user-configured pages and stop on a short page. Counts are calculated after source-observed identity filtering and per-source deduplication. Populated details refine requests and confidence ranking but do not hide exact-name records when snippets omit those details. Submitted fields are never injected into result evidence. Browser links and search forms do not participate in results. Last reviewed: 2026-08-01.
+All active providers have `Paid = No` and `Auth = No`. Every search performs fresh network retrieval with HTTP caching disabled; previous result cards and counts are cleared before requests begin. Paginated direct API providers retrieve the user-configured pages and stop on a short page. Counts are calculated after source-observed identity filtering and per-source deduplication. Populated details refine requests and confidence ranking but do not hide exact-name records when snippets omit those details. Submitted fields are never injected into result evidence. Browser links and search forms do not participate in results. Last reviewed: 2026-08-01.
 
 County choices load from the official, keyless Census TIGERweb State/County layer after a U.S. state is selected. Manual county entry remains available when that catalog cannot be reached.
 

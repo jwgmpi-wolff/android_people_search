@@ -128,7 +128,17 @@ class PeopleSearchViewModel(application: Application) : AndroidViewModel(applica
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(isSearching = true, message = null) }
+            _state.update {
+                it.copy(
+                    results = emptyList(),
+                    selectedResult = null,
+                    summary = null,
+                    failedProviders = emptyList(),
+                    sourceCounts = emptyList(),
+                    isSearching = true,
+                    message = null,
+                )
+            }
             val report = engine.searchWithDiagnostics(query, state.value.settings.pageDepth)
             val review = assistant.summarizeResults(report.results)
             settingsRepository.record(SearchSession(query, report.results.size, System.currentTimeMillis()))

@@ -240,6 +240,7 @@ Create a GET-only `PublicApiClient` abstraction and `HttpPublicApiClient` based 
 - `readTimeout = 10_000` milliseconds.
 - Request method `GET`.
 - Header `Accept: application/json`.
+- Disable connection and default caches, and send `Cache-Control: no-cache, no-store, max-age=0` plus `Pragma: no-cache` so every search uses live responses.
 - Header `User-Agent: AndroidPeopleSearch/1.0 (public-source research app)`.
 - Return response text for HTTP 2xx.
 - Throw `PublicApiHttpException(statusCode)` for non-2xx responses.
@@ -514,6 +515,7 @@ Create `SearchChatMessage(fromAssistant, text)` and `SearchUiState` with default
 - Run engine search at configured page depth.
 - Generate automatic review from the exact displayed result list.
 - Record sessions only through the repository’s opt-in history behavior.
+- Before each search, clear prior results, selected result, summary, failures, and source counts so stale records are never presented as live retrieval.
 - Expose result selection, explanation, settings mutation, and clear-local-data actions.
 
 ## Navigation and UI
