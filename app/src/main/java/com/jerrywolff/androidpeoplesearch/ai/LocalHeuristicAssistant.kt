@@ -51,7 +51,9 @@ class LocalHeuristicAssistant : AiAssistant {
             }
         }
 
-        labeledValue(message, "name")?.let { apply("name", it) { current, value -> current.copy(fullName = value) } }
+        labeledValue(message, "name")?.let {
+            apply("name", it) { current, value -> current.copy(fullName = value, firstName = "", lastName = "") }
+        }
         labeledValue(message, "city")?.let { apply("city", it) { current, value -> current.copy(city = value) } }
         labeledValue(message, "state")?.let { apply("state", it) { current, value -> current.copy(state = value) } }
         labeledValue(message, "country")?.let { apply("country", it) { current, value -> current.copy(country = value) } }

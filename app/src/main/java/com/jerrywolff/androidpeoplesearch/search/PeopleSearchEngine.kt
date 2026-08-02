@@ -2,6 +2,7 @@ package com.jerrywolff.androidpeoplesearch.search
 
 import com.jerrywolff.androidpeoplesearch.model.PeopleSearchQuery
 import com.jerrywolff.androidpeoplesearch.model.PersonSearchResult
+import com.jerrywolff.androidpeoplesearch.model.SocialPlatform
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -31,15 +32,19 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
         pageDepth: Int = 5,
         breadthLevel: Int = 0,
     ): SearchReport = coroutineScope {
-        val outcomes = providers.filter { !it.requiresPayment && !it.requiresAuth }
-            .map { provider ->
+        val eligibleProviders = providers.filter {
+            !it.requiresPayment && !it.requiresAuth && it.isRequestedBy(query)
+        }
+        suspend fun execute(selectedProviders: List<SearchProvider>, breadth: Int) =
+            selectedProviders.map { provider ->
                 async {
-                    runCatching { provider.search(query, pageDepth.coerceIn(1, 5), breadthLevel.coerceAtLeast(0)) }
+                    runCatching { provider.search(query, pageDepth.coerceIn(1, 5), breadth) }
                         .fold(
-                            onSuccess = { ProviderOutcome(provider.displayName, it, null) },
+                            onSuccess = { ProviderOutcome(provider.id, provider.displayName, it, null) },
                             onFailure = {
                                 val reason = it.userFacingReason()
                                 ProviderOutcome(
+                                    provider.id,
                                     provider.displayName,
                                     emptyList(),
                                     ProviderFailure(provider.displayName, reason),
@@ -49,13 +54,30 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
                 }
             }
             .awaitAll()
-        val deduplicatedOutcomes = outcomes.map { outcome ->
+
+        fun filter(outcomes: List<ProviderOutcome>) = outcomes.map { outcome ->
             outcome.copy(
                 results = outcome.results
                     .filter { it.matchesRequestedIdentity(query) }
+                    .filter { it.isRequestedBy(query) }
                     .distinctBy { it.url },
             )
         }
+
+        val initialOutcomes = filter(execute(eligibleProviders, breadthLevel.coerceAtLeast(0)))
+        val fallbackProviders = eligibleProviders.filter { it.id in GENERAL_INDEX_PROVIDER_IDS }
+        val fallbackOutcomes = if (
+            breadthLevel < 1 &&
+            initialOutcomes.none { it.results.isNotEmpty() } &&
+            fallbackProviders.isNotEmpty()
+        ) {
+            filter(execute(fallbackProviders, breadth = 1))
+        } else {
+            emptyList()
+        }
+        val fallbackByProvider = fallbackOutcomes.associateBy { it.providerId }
+        val deduplicatedOutcomes = initialOutcomes.map { fallbackByProvider[it.providerId] ?: it }
+
         SearchReport(
             results = deduplicatedOutcomes.flatMap { it.results }
                 .distinctBy { it.url }
@@ -78,11 +100,40 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
     }
 
     private data class ProviderOutcome(
+        val providerId: String,
         val providerName: String,
         val results: List<PersonSearchResult>,
         val failure: ProviderFailure?,
     )
 }
+
+private val GENERAL_INDEX_PROVIDER_IDS = setOf("bing_web", "bing_linkedin", "duckduckgo_web")
+
+private fun SearchProvider.isRequestedBy(query: PeopleSearchQuery): Boolean = when (id) {
+    "github" -> query.requestsGitHub()
+    "stackoverflow" -> query.requestsStackOverflow()
+    "bing_linkedin" -> SocialPlatform.LINKEDIN in query.socialPlatforms
+    "bluesky" -> SocialPlatform.BLUESKY in query.socialPlatforms
+    "selected_social_references" -> query.socialPlatforms.isNotEmpty()
+    else -> true
+}
+
+private fun PersonSearchResult.isRequestedBy(query: PeopleSearchQuery): Boolean = runCatching {
+    val host = URI(url).host.orEmpty().lowercase().removePrefix("www.")
+    val socialPlatform = SocialPlatform.entries.firstOrNull { it.matchesHost(host) }
+    if (socialPlatform != null) return@runCatching socialPlatform in query.socialPlatforms
+    when (host) {
+        "github.com" -> query.requestsGitHub()
+        "stackoverflow.com" -> query.requestsStackOverflow()
+        else -> true
+    }
+}.getOrDefault(true)
+
+private fun PeopleSearchQuery.requestsGitHub(): Boolean =
+    Regex("\\bgithub\\b", RegexOption.IGNORE_CASE).containsMatchIn(freeText)
+
+private fun PeopleSearchQuery.requestsStackOverflow(): Boolean =
+    Regex("\\bstack\\s*overflow\\b", RegexOption.IGNORE_CASE).containsMatchIn(freeText)
 
 private fun PersonSearchResult.isSupplementalDeveloperSource(): Boolean =
     providerId == "github" || providerId == "stackoverflow" || runCatching {

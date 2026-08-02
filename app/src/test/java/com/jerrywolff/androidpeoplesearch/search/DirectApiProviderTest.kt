@@ -1,6 +1,7 @@
 package com.jerrywolff.androidpeoplesearch.search
 
 import com.jerrywolff.androidpeoplesearch.model.PeopleSearchQuery
+import com.jerrywolff.androidpeoplesearch.model.SocialPlatform
 import com.jerrywolff.androidpeoplesearch.model.SourceCategory
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -8,6 +9,63 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DirectApiProviderTest {
+    @Test
+    fun selectedSocialReferencesQueryAndReturnOnlySelectedPlatforms() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val provider = SelectedSocialReferencesProvider(
+            PublicApiClient { url ->
+                requestedUrls += url
+                """<?xml version="1.0"?><rss><channel>
+                    <item><title>Alexis Wolff - Instagram</title><link>https://www.instagram.com/alexiswolff</link><description>Public profile</description></item>
+                    <item><title>Alexis Wolff - Facebook</title><link>https://www.facebook.com/alexiswolff</link><description>Public profile</description></item>
+                    <item><title>Alexis Wolff elsewhere</title><link>https://example.com/alexiswolff</link><description>Index noise</description></item>
+                </channel></rss>"""
+            },
+        )
+
+        val results = provider.search(
+            PeopleSearchQuery(
+                fullName = "Alexis Wolff",
+                socialPlatforms = setOf(SocialPlatform.INSTAGRAM, SocialPlatform.SNAPCHAT),
+            ),
+            pageDepth = 5,
+        )
+
+        assertTrue(requestedUrls.single().contains("site%3Ainstagram.com"))
+        assertTrue(requestedUrls.single().contains("site%3Asnapchat.com"))
+        assertTrue(requestedUrls.single().contains("site%3Afacebook.com").not())
+        assertEquals(listOf("https://www.instagram.com/alexiswolff"), results.map { it.url })
+    }
+
+    @Test
+    fun duckDuckGoUnwrapsPublicProfilesAndExcludesPeopleFinders() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val provider = DuckDuckGoPublicReferencesProvider(
+            PublicApiClient { url ->
+                requestedUrls += url
+                """
+                    <div class="result">
+                      <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.spokeo.com%2FAlexis-Wolff&amp;rut=abc">Alexis Wolff report</a>
+                      <a class="result__snippet">Paid report</a>
+                    </div>
+                    <div class="result">
+                      <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.facebook.com%2Falexis.wolff%2F&amp;rut=def">Alexis Wolff - Facebook</a>
+                      <a class="result__snippet">Public profile in Seattle</a>
+                    </div>
+                """.trimIndent()
+            },
+        )
+
+        val result = provider.search(
+            PeopleSearchQuery(fullName = "Alexis Wolff", city = "Seattle"),
+            pageDepth = 5,
+        ).single()
+
+        assertTrue(requestedUrls.single().startsWith("https://html.duckduckgo.com/html/?q="))
+        assertEquals("https://www.facebook.com/alexis.wolff/", result.url)
+        assertEquals("Public profile in Seattle", result.description)
+    }
+
     @Test
     fun kingCountySubmitsExactNameAndReturnsPublicWorkIdentityFields() = runBlocking {
         val requestedUrls = mutableListOf<String>()
@@ -192,13 +250,13 @@ class DirectApiProviderTest {
         requestedUrls.clear()
         provider.search(query, pageDepth = 1, breadthLevel = 1)
 
-        assertEquals(7, requestedUrls.size)
+        assertEquals(6, requestedUrls.size)
         assertTrue(requestedUrls.any { it.contains("Claude%20Nazon%20Florida") })
         assertTrue(requestedUrls.any { it.contains("%22Claude%20Nazon%22") })
         assertTrue(requestedUrls.any { it.contains("site%3Afacebook.com") && it.contains("site%3Absky.app") })
         assertTrue(requestedUrls.any { it.contains("site%3A.gov") && it.contains("site%3A.edu") })
         assertTrue(requestedUrls.any { it.contains("site%3Asemanticscholar.org") && it.contains("site%3Aopenlibrary.org") })
-        assertTrue(requestedUrls.any { it.contains("site%3Agithub.com") && it.contains("site%3Astackoverflow.com") })
+        assertTrue(requestedUrls.none { it.contains("site%3Agithub.com") || it.contains("site%3Astackoverflow.com") })
     }
 
     @Test

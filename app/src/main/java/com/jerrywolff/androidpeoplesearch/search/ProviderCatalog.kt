@@ -3,6 +3,8 @@ package com.jerrywolff.androidpeoplesearch.search
 object ProviderCatalog {
     val providers: List<SearchProvider> = listOf(
         BingPublicReferencesProvider(),
+        DuckDuckGoPublicReferencesProvider(),
+        SelectedSocialReferencesProvider(),
         BingPublicReferencesProvider(linkedInOnly = true),
         BlueskyActorsApiProvider(),
         CountyOfficialReferencesProvider(),

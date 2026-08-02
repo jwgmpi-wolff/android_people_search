@@ -21,11 +21,14 @@ adb install -r android-people-search-1.0.0.apk
 
 - Kotlin, Jetpack Compose, Material 3, and Navigation Compose
 - Public web, profile, professional, news, domain, username, and government-record search targets
-- Every search automatically runs all compliant direct-record and public-index providers and shows a final record count for each source
+- Every search automatically runs compliant direct-record and public-index providers and shows a final record count for each source; GitHub and Stack Overflow run only when explicitly named in the AI free-text field
 - Every search is a fresh live retrieval: HTTP caches are bypassed and prior cards, counts, and summaries are cleared before requests begin
+- If no identity-matched records are found, the compliant Bing and DuckDuckGo indexes automatically run broader live queries without relaxing identity evidence
 - County filtering, U.S. state and country selectors, and an on-device search-assistant chat for applying conversational specifics
+- A social-source multi-select defaults to all and supports Select all or individual Facebook, Instagram, Threads, X, Bluesky, LinkedIn, Snapchat, TikTok, Pinterest, and Mastodon public-page searches
 - A persisted 1–5 page-depth setting controls direct retrieval (up to 20 records per page and 100 per source)
 - Returned candidates must contain the requested identity; populated details refine provider queries and rank source-observed matches without hiding exact-name records whose snippets omit those details
+- Results default to alphabetical order, support alternate sorting, and can be filtered by selecting a source-count chip
 - Deterministic on-device query refinement, normalization, duplicate removal, confidence scoring, explanations, and summaries
 - Deterministic on-device assistant with no cloud dependency
 - DataStore settings and opt-in-only local history

@@ -250,18 +250,20 @@ Use `android.net.Uri` or structured URL APIs for encoding. Do not concatenate un
 
 ## Exact provider catalog
 
-Register these ten providers in this order:
+Register these twelve providers in this order:
 
 1. `BingPublicReferencesProvider()`
-2. `BingPublicReferencesProvider(linkedInOnly = true)`
-3. `CountyOfficialReferencesProvider()`
-4. `KingCountyEmployeesProvider()`
-5. `NpiRegistryApiProvider()`
-6. `SemanticScholarAuthorsApiProvider()`
-7. `OpenLibraryAuthorsApiProvider()`
-8. `BlueskyActorsApiProvider()`
-9. `GitHubUsersApiProvider()`
-10. `StackOverflowUsersApiProvider()`
+2. `DuckDuckGoPublicReferencesProvider()`
+3. `SelectedSocialReferencesProvider()`
+4. `BingPublicReferencesProvider(linkedInOnly = true)`
+5. `BlueskyActorsApiProvider()`
+6. `CountyOfficialReferencesProvider()`
+7. `KingCountyEmployeesProvider()`
+8. `NpiRegistryApiProvider()`
+9. `SemanticScholarAuthorsApiProvider()`
+10. `OpenLibraryAuthorsApiProvider()`
+11. `GitHubUsersApiProvider()`
+12. `StackOverflowUsersApiProvider()`
 
 ### Direct provider base
 
@@ -346,6 +348,13 @@ Create `DirectApiProvider` that:
 - Parse DID, handle, display name, and description.
 - Link to `https://bsky.app/profile/<handle>`.
 
+### Selected social public references
+
+- Add a multi-select query field and Compose dropdown for Facebook, Instagram, Threads, X, Bluesky, LinkedIn, Snapchat, TikTok, Pinterest, and Mastodon; default to all and provide Select all.
+- Query Bing RSS with the requested identity plus combined `site:` constraints for only selected domains.
+- Keep only HTTPS records whose destination host belongs to a selected platform, then apply the mandatory source-observed identity gate.
+- Do not execute direct LinkedIn or Bluesky providers when their platforms are deselected. Do not scrape accounts, authenticated pages, private content, or CAPTCHA-protected pages.
+
 ### GitHub public users
 
 - ID `github`; display name `GitHub public users`; category `PROFESSIONAL`.
@@ -408,11 +417,11 @@ Behavior:
 7. Require every requested name token or the compact full name in source title, description, or URL. If no name was supplied, require the supplied username.
 8. Use populated company, city, county, state, domain, country, username, and free-text fields to refine provider requests and add confidence only when source-observed. Do not reject an exact-name record merely because an index snippet omits a populated refinement.
 9. For Bing public web and LinkedIn references, include domain and free-text context in the populated-field query, run both that query and the exact-identity fallback for the configured page depth, preserve successful earlier records if a later request fails, then deduplicate URLs.
-10. Track consecutive submissions of the same normalized fields. An unchanged resubmission must make fresh network requests and add, in priority order: an unquoted name plus city/state query; a social-profile query across Facebook, Instagram, Threads, X, Bluesky, and Mastodon; an authoritative `.gov/.edu/.org` query; an academic/author query; and a supplemental GitHub/Stack Overflow query. Add an unquoted `site:linkedin.com/in` query for LinkedIn. Every direct provider must also rerun live. Field edits reset this broader pass. Keep source-observed identity filtering unchanged.
+10. If the complete initial pass has no post-filter records, automatically rerun Bing web, Bing LinkedIn, and DuckDuckGo with breadth level 1. Track consecutive submissions of the same normalized fields. An unchanged resubmission must make fresh network requests and add, in priority order: an unquoted name plus city/state query; a social-profile query across Facebook, Instagram, Threads, X, Bluesky, and Mastodon; an authoritative `.gov/.edu/.org` query; and an academic/author query. Add GitHub or Stack Overflow constrained queries only when that source is explicitly named in AI free text. Add an unquoted `site:linkedin.com/in` query for LinkedIn. Every eligible direct provider must also rerun live. Field edits reset this broader pass. Keep source-observed identity filtering unchanged.
 11. Never inject submitted fields into result descriptions or confidence evidence.
 12. Deduplicate each provider result list by URL and report counts from the exact visible per-provider lists.
 13. Merge and deduplicate globally by URL.
-14. Present web and social providers before other sources. Sort every GitHub and Stack Overflow result after all other matching sources, including developer URLs returned through Bing; within each tier sort direct results first, then confidence descending, then source name.
+14. Present web and social providers before other sources. Do not execute or display GitHub or Stack Overflow, including developer URLs returned through general indexes, unless the corresponding source is explicitly named in AI free text. When requested, sort those results after all other matching sources; within each tier sort direct results first, then confidence descending, then source name.
 15. Keep identity-matching low-confidence leads visible; reject candidates that fail identity evidence.
 
 ## Confidence scoring

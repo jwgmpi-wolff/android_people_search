@@ -5,6 +5,7 @@ import com.jerrywolff.androidpeoplesearch.model.ConfidenceLevel
 import com.jerrywolff.androidpeoplesearch.model.PeopleSearchQuery
 import com.jerrywolff.androidpeoplesearch.model.PersonSearchResult
 import com.jerrywolff.androidpeoplesearch.model.SourceCategory
+import com.jerrywolff.androidpeoplesearch.model.SocialPlatform
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,8 +17,8 @@ class PeopleSearchEngineTest {
     @Test
     fun providerPresentationPrioritizesWebAndSocialBeforeDeveloperSources() {
         assertEquals(
-            listOf("bing_web", "bing_linkedin", "bluesky"),
-            ProviderCatalog.providers.take(3).map { it.id },
+            listOf("bing_web", "duckduckgo_web", "selected_social_references", "bing_linkedin", "bluesky"),
+            ProviderCatalog.providers.take(5).map { it.id },
         )
         assertEquals(listOf("github", "stackoverflow"), ProviderCatalog.providers.takeLast(2).map { it.id })
     }
@@ -171,7 +172,7 @@ class PeopleSearchEngineTest {
         )
 
         val report = PeopleSearchEngine(listOf(provider))
-            .searchWithDiagnostics(PeopleSearchQuery(fullName = "Alexis Wolff"))
+            .searchWithDiagnostics(PeopleSearchQuery(fullName = "Alexis Wolff", freeText = "include GitHub"))
 
         assertEquals(1, report.results.size)
         assertEquals(listOf(SourceResultCount("github", 1, false)), report.sourceCounts)
@@ -179,7 +180,7 @@ class PeopleSearchEngineTest {
 
     @Test
     fun webAndSocialResultsRankAheadOfDeveloperProfiles() = runBlocking {
-        val query = PeopleSearchQuery(fullName = "Claude Nazon")
+        val query = PeopleSearchQuery(fullName = "Claude Nazon", freeText = "GitHub and Stack Overflow")
         val web = rankedProvider(
             providerId = "bing_web",
             category = SourceCategory.PUBLIC_RECORDS,
@@ -206,6 +207,52 @@ class PeopleSearchEngineTest {
         val report = PeopleSearchEngine(listOf(github, stackOverflow, web)).searchWithDiagnostics(query)
 
         assertEquals(listOf("bing_web", "bing_web_github", "stackoverflow"), report.results.map { it.providerId })
+    }
+
+    @Test
+    fun developerSourcesAreExcludedUnlessNamedInFreeText() = runBlocking {
+        val calls = AtomicInteger()
+        val github = fakeProvider("github", SourceCategory.PROFESSIONAL, calls)
+        val stackOverflow = fakeProvider("stackoverflow", SourceCategory.PROFESSIONAL, calls)
+        val indexedGitHub = rankedProvider(
+            providerId = "bing_web",
+            category = SourceCategory.WEB,
+            title = "Alexis Wolff",
+            confidenceScore = 80,
+            direct = false,
+            resultUrl = "https://github.com/alexis-wolff",
+        )
+
+        val ordinary = PeopleSearchEngine(listOf(github, stackOverflow, indexedGitHub))
+            .searchWithDiagnostics(PeopleSearchQuery(fullName = "Alexis Wolff"))
+        val stackOnly = PeopleSearchEngine(listOf(github, stackOverflow))
+            .searchWithDiagnostics(PeopleSearchQuery(fullName = "Alexis Wolff", freeText = "Stack Overflow"))
+
+        assertTrue(ordinary.results.isEmpty())
+        assertEquals(listOf("bing_web"), ordinary.sourceCounts.map { it.providerName })
+        assertEquals(listOf("stackoverflow"), stackOnly.sourceCounts.map { it.providerName })
+    }
+
+    @Test
+    fun deselectedSocialProvidersAndIndexedUrlsAreExcluded() = runBlocking {
+        val calls = AtomicInteger()
+        val linkedIn = fakeProvider("bing_linkedin", SourceCategory.PROFESSIONAL, calls)
+        val bluesky = fakeProvider("bluesky", SourceCategory.SOCIAL, calls)
+        val indexedFacebook = fakeProvider(
+            "other_web",
+            SourceCategory.WEB,
+            calls,
+            resultTitle = "Ada Lovelace - Facebook",
+            resultUrl = "https://www.facebook.com/ada.lovelace",
+        )
+
+        val report = PeopleSearchEngine(listOf(linkedIn, bluesky, indexedFacebook)).searchWithDiagnostics(
+            PeopleSearchQuery(fullName = "Ada Lovelace", socialPlatforms = setOf(SocialPlatform.INSTAGRAM)),
+        )
+
+        assertEquals(1, calls.get())
+        assertTrue(report.results.isEmpty())
+        assertEquals(listOf(SourceResultCount("other_web", 0, false)), report.sourceCounts)
     }
 
     @Test
@@ -237,6 +284,49 @@ class PeopleSearchEngineTest {
 
         assertEquals(submitted, receivedQuery)
         assertEquals(1, receivedBreadth)
+    }
+
+    @Test
+    fun emptyInitialSearchAutomaticallyBroadensGeneralIndexes() = runBlocking {
+        val receivedBreadths = mutableListOf<Int>()
+        val provider = object : SearchProvider {
+            override val id = "bing_web"
+            override val displayName = "Bing public web references"
+            override val category = SourceCategory.WEB
+            override val requiresPayment = false
+            override val requiresAuth = false
+            override val lastVerified = "2026-08-01"
+            override fun buildSearchUrl(query: PeopleSearchQuery): Uri = error("Not used")
+            override suspend fun search(query: PeopleSearchQuery): List<PersonSearchResult> = emptyList()
+            override suspend fun search(
+                query: PeopleSearchQuery,
+                pageDepth: Int,
+                breadthLevel: Int,
+            ): List<PersonSearchResult> {
+                receivedBreadths += breadthLevel
+                if (breadthLevel == 0) return emptyList()
+                return listOf(
+                    PersonSearchResult(
+                        id = "claude-nazon",
+                        providerId = id,
+                        title = "Claude Nazon - public profile",
+                        description = "Source-observed public profile",
+                        url = "https://example.com/claude-nazon",
+                        sourceName = displayName,
+                        category = category,
+                        confidence = ConfidenceLevel.MEDIUM,
+                        confidenceScore = 60,
+                    ),
+                )
+            }
+        }
+
+        val report = PeopleSearchEngine(listOf(provider))
+            .searchWithDiagnostics(PeopleSearchQuery(firstName = "Claude", lastName = "Nazon"))
+
+        assertEquals(listOf(0, 1), receivedBreadths)
+        assertEquals(listOf("Claude Nazon - public profile"), report.results.map { it.title })
+        assertEquals(1, report.sourceCounts.single().recordCount)
     }
 
     private fun fakeProvider(

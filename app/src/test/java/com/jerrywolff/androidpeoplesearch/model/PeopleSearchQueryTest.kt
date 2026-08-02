@@ -25,4 +25,22 @@ class PeopleSearchQueryTest {
         assertEquals("\"Ada Lovelace\" London Greater London United Kingdom \"Analytical Engine\"", text)
         assertFalse(PeopleSearchQuery(freeText = "researcher").isBlank())
     }
+
+    @Test
+    fun firstAndLastNameOverrideStaleFullName() {
+        val query = PeopleSearchQuery(
+            firstName = "Grace",
+            lastName = "Hopper",
+            fullName = "Ada Lovelace",
+        )
+
+        assertEquals("Grace Hopper", query.personName())
+        assertEquals("\"Grace Hopper\"", query.searchText())
+    }
+
+    @Test
+    fun eitherSeparateNameFieldCanDriveTheSearch() {
+        assertEquals("Grace", PeopleSearchQuery(firstName = "Grace", fullName = "Ada Lovelace").personName())
+        assertEquals("Hopper", PeopleSearchQuery(lastName = "Hopper", fullName = "Ada Lovelace").personName())
+    }
 }

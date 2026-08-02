@@ -12,6 +12,24 @@ enum class SourceCategory(val label: String) {
 
 enum class ConfidenceLevel(val label: String) { HIGH("High"), MEDIUM("Medium"), LOW("Low") }
 
+enum class SocialPlatform(val label: String, val domains: Set<String>) {
+    FACEBOOK("Facebook", setOf("facebook.com")),
+    INSTAGRAM("Instagram", setOf("instagram.com")),
+    THREADS("Threads", setOf("threads.net")),
+    X("X", setOf("x.com", "twitter.com")),
+    BLUESKY("Bluesky", setOf("bsky.app")),
+    LINKEDIN("LinkedIn", setOf("linkedin.com")),
+    SNAPCHAT("Snapchat", setOf("snapchat.com")),
+    TIKTOK("TikTok", setOf("tiktok.com")),
+    PINTEREST("Pinterest", setOf("pinterest.com")),
+    MASTODON("Mastodon", setOf("mastodon.social")),
+    ;
+
+    fun matchesHost(host: String): Boolean = domains.any { domain ->
+        host == domain || host.endsWith(".$domain")
+    }
+}
+
 data class PeopleSearchQuery(
     val firstName: String = "",
     val lastName: String = "",
@@ -24,6 +42,7 @@ data class PeopleSearchQuery(
     val emailDomain: String = "",
     val username: String = "",
     val freeText: String = "",
+    val socialPlatforms: Set<SocialPlatform> = SocialPlatform.entries.toSet(),
 ) {
     fun normalized(): PeopleSearchQuery = copy(
         firstName = firstName.clean(), lastName = lastName.clean(), fullName = fullName.clean(),
@@ -33,7 +52,10 @@ data class PeopleSearchQuery(
         freeText = freeText.clean(),
     )
 
-    fun personName(): String = fullName.ifBlank { listOf(firstName, lastName).filter(String::isNotBlank).joinToString(" ") }
+    fun personName(): String = listOf(firstName, lastName)
+        .filter(String::isNotBlank)
+        .joinToString(" ")
+        .ifBlank { fullName }
 
     fun searchText(): String = listOf(
         personName().quoteIfMultiword(), city, county, state, country, company.quoteIfMultiword(),

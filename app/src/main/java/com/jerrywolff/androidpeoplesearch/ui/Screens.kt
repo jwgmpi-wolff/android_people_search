@@ -27,10 +27,12 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
@@ -59,6 +61,7 @@ import com.jerrywolff.androidpeoplesearch.model.ConfidenceLevel
 import com.jerrywolff.androidpeoplesearch.model.PeopleSearchQuery
 import com.jerrywolff.androidpeoplesearch.model.PersonSearchResult
 import com.jerrywolff.androidpeoplesearch.model.SourceCategory
+import com.jerrywolff.androidpeoplesearch.model.SocialPlatform
 import com.jerrywolff.androidpeoplesearch.search.usStateNames
 import com.jerrywolff.androidpeoplesearch.ui.theme.AndroidPeopleSearchTheme
 import java.util.Locale
@@ -75,11 +78,11 @@ fun HomeScreen(state: SearchUiState, update: (PeopleSearchQuery) -> Unit, select
             Text("Search public sources", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text("One search automatically checks every compliant public source and labels where each result was found.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        item { FormField("Full name", query.fullName) { update(query.copy(fullName = it)) } }
+        item { FormField("Full name", query.fullName) { update(query.copy(fullName = it, firstName = "", lastName = "")) } }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FormField("First name", query.firstName, Modifier.weight(1f)) { update(query.copy(firstName = it)) }
-                FormField("Last name", query.lastName, Modifier.weight(1f)) { update(query.copy(lastName = it)) }
+                FormField("First name", query.firstName, Modifier.weight(1f)) { update(query.copy(firstName = it, fullName = "")) }
+                FormField("Last name", query.lastName, Modifier.weight(1f)) { update(query.copy(lastName = it, fullName = "")) }
             }
         }
         item {
@@ -103,6 +106,9 @@ fun HomeScreen(state: SearchUiState, update: (PeopleSearchQuery) -> Unit, select
                 FormField("Email domain", query.emailDomain, Modifier.weight(1f)) { update(query.copy(emailDomain = it)) }
                 FormField("Username", query.username, Modifier.weight(1f)) { update(query.copy(username = it)) }
             }
+        }
+        item {
+            SocialSourcesDropdown(query.socialPlatforms) { update(query.copy(socialPlatforms = it)) }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -144,6 +150,45 @@ fun HomeScreen(state: SearchUiState, update: (PeopleSearchQuery) -> Unit, select
 @Composable
 private fun FormField(label: String, value: String, modifier: Modifier = Modifier.fillMaxWidth(), update: (String) -> Unit) {
     OutlinedTextField(value, update, modifier, label = { Text(label) }, singleLine = true)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SocialSourcesDropdown(selected: Set<SocialPlatform>, update: (Set<SocialPlatform>) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val allPlatforms = SocialPlatform.entries.toSet()
+    val summary = when {
+        selected.isEmpty() -> "No social sources"
+        selected == allPlatforms -> "All social sources"
+        selected.size == 1 -> selected.single().label
+        else -> "${selected.size} social sources"
+    }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = summary,
+            onValueChange = {},
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+            readOnly = true,
+            label = { Text("Social sources") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Select all") },
+                onClick = { update(if (selected == allPlatforms) emptySet() else allPlatforms) },
+                trailingIcon = { Checkbox(checked = selected == allPlatforms, onCheckedChange = null) },
+            )
+            SocialPlatform.entries.forEach { platform ->
+                DropdownMenuItem(
+                    text = { Text(platform.label) },
+                    onClick = {
+                        update(if (platform in selected) selected - platform else selected + platform)
+                    },
+                    trailingIcon = { Checkbox(checked = platform in selected, onCheckedChange = null) },
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -243,20 +288,35 @@ private fun CountryDropdown(value: String, update: (String) -> Unit) {
 
 @Composable
 fun ResultsScreen(state: SearchUiState, onBack: () -> Unit, onSelect: (PersonSearchResult) -> Unit) {
+    var selectedSource by rememberSaveable { mutableStateOf<String?>(null) }
+    var sortOrder by rememberSaveable { mutableStateOf(ResultSortOrder.TITLE_ASCENDING) }
+    val visibleResults = state.results
+        .filter { selectedSource == null || it.sourceName == selectedSource }
+        .let(sortOrder::sort)
+
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { BackHeader("Results", onBack); NoticeCard() }
         if (state.sourceCounts.isNotEmpty()) {
             item { Text("Records found by source", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-            item { Text("Counts include records matching the entered identity. Populated details refine the search and raise stronger observed matches.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { Text("Select a source count to filter the records. Populated details refine the search and raise stronger observed matches.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item {
+                FilterChip(
+                    selected = selectedSource == null,
+                    onClick = { selectedSource = null },
+                    label = { Text("All sources (${state.results.size})") },
+                )
+            }
             items(state.sourceCounts, key = { it.providerName }) { source ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(source.providerName, Modifier.weight(1f))
-                    Text(
-                        if (source.failed) source.failureReason ?: "Unavailable" else "${source.recordCount} found",
-                        color = if (source.failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                FilterChip(
+                    selected = selectedSource == source.providerName,
+                    onClick = { selectedSource = source.providerName },
+                    label = {
+                        Text(
+                            "${source.providerName}: " +
+                                if (source.failed) source.failureReason ?: "Unavailable" else "${source.recordCount} found",
+                        )
+                    },
+                )
             }
         }
         if (state.results.isEmpty()) {
@@ -281,9 +341,62 @@ fun ResultsScreen(state: SearchUiState, onBack: () -> Unit, onSelect: (PersonSea
                 }
             }
         }
-        if (state.results.isNotEmpty()) item { Text("Records", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-        items(state.results, key = { it.id }) { ResultCard(it, onSelect) }
+        if (state.results.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        if (selectedSource == null) "Records (${visibleResults.size})" else "$selectedSource (${visibleResults.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    ResultSortMenu(sortOrder, onSelect = { sortOrder = it })
+                }
+            }
+        }
+        if (state.results.isNotEmpty() && visibleResults.isEmpty()) {
+            item { Text("No matching records from this source.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+        items(visibleResults, key = { it.id }) { ResultCard(it, onSelect) }
         item { Spacer(Modifier.height(20.dp)) }
+    }
+}
+
+private enum class ResultSortOrder(val label: String) {
+    TITLE_ASCENDING("Name A-Z"),
+    TITLE_DESCENDING("Name Z-A"),
+    CONFIDENCE("Confidence"),
+    SOURCE("Source A-Z"),
+    ;
+
+    fun sort(results: List<PersonSearchResult>): List<PersonSearchResult> = when (this) {
+        TITLE_ASCENDING -> results.sortedBy { it.title.lowercase() }
+        TITLE_DESCENDING -> results.sortedByDescending { it.title.lowercase() }
+        CONFIDENCE -> results.sortedWith(compareByDescending<PersonSearchResult> { it.confidenceScore }.thenBy { it.title.lowercase() })
+        SOURCE -> results.sortedWith(compareBy<PersonSearchResult> { it.sourceName.lowercase() }.thenBy { it.title.lowercase() })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ResultSortMenu(selected: ResultSortOrder, onSelect: (ResultSortOrder) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = selected.label,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Sort records") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            ResultSortOrder.entries.forEach { order ->
+                DropdownMenuItem(
+                    text = { Text(order.label) },
+                    onClick = { onSelect(order); expanded = false },
+                )
+            }
+        }
     }
 }
 
@@ -349,7 +462,7 @@ fun SettingsScreen(state: SearchUiState, setPageDepth: (Int) -> Unit, setHistory
     LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             BackHeader("Sources & settings", onBack)
-            DetailBlock("Automatic source coverage", "Every compliant provider and category runs for each search. Results identify the source and category individually.")
+            DetailBlock("Automatic source coverage", "Compliant providers run automatically, honoring selected social sources and opt-in developer sources. Results identify the source and category individually.")
         }
         item {
             Text("Pages per source", style = MaterialTheme.typography.titleMedium)

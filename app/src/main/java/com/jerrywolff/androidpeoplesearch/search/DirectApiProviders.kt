@@ -3,11 +3,14 @@ package com.jerrywolff.androidpeoplesearch.search
 import android.net.Uri
 import com.jerrywolff.androidpeoplesearch.model.PeopleSearchQuery
 import com.jerrywolff.androidpeoplesearch.model.PersonSearchResult
+import com.jerrywolff.androidpeoplesearch.model.SocialPlatform
 import com.jerrywolff.androidpeoplesearch.model.SourceCategory
 import org.json.JSONObject
 import org.w3c.dom.Element
 import java.io.ByteArrayInputStream
 import java.net.URI
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -132,6 +135,50 @@ private fun parseRssItems(xml: String): List<RssItem> {
     }
 }
 
+class SelectedSocialReferencesProvider(client: PublicApiClient = HttpPublicApiClient()) : DirectApiProvider(
+    id = "selected_social_references",
+    displayName = "Selected social public references",
+    category = SourceCategory.SOCIAL,
+    sourceUrl = { query -> ProviderUrlBuilder.query("https://www.bing.com/search", "q", query.socialIndexQuery()) },
+    client = client,
+) {
+    override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> {
+        val search = query.socialIndexQuery()
+        if (search.isBlank()) return emptyList()
+        return buildList {
+            for (pageIndex in 0 until pageDepth) {
+                val first = pageIndex * 10 + 1
+                val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
+                val items = parseRssItems(client.get(url))
+                items.filterNot { it.url.isProhibitedReference() }
+                    .filter { it.url.isSelectedSocialReference(query) }
+                    .forEach { item ->
+                    add(result(query, item.url.hashCode().toString(), item.title, cleanHtml(item.description), item.url))
+                }
+                if (items.size < 10) break
+            }
+        }.distinctBy { it.url }
+    }
+}
+
+private fun String.isSelectedSocialReference(query: PeopleSearchQuery): Boolean = runCatching {
+    val host = URI(this).host.orEmpty().lowercase().removePrefix("www.")
+    query.socialPlatforms.any { it.matchesHost(host) }
+}.getOrDefault(false)
+
+private fun PeopleSearchQuery.socialIndexQuery(): String {
+    if (socialPlatforms.isEmpty()) return ""
+    val identity = listOf(personName(), city, state, username)
+        .filter(String::isNotBlank)
+        .joinToString(" ")
+    if (identity.isBlank()) return ""
+    val sites = socialPlatforms
+        .flatMap(SocialPlatform::domains)
+        .sorted()
+        .joinToString(" OR ") { "site:$it" }
+    return "$identity ($sites)"
+}
+
 private fun PeopleSearchQuery.bingReferenceQuery(linkedInOnly: Boolean): String = listOf(
     personName().takeIf(String::isNotBlank)?.let { "\"$it\"" }.orEmpty(),
     city,
@@ -157,14 +204,99 @@ private fun PeopleSearchQuery.bingBroadQueries(linkedInOnly: Boolean): List<Stri
         .joinToString(" ")
     if (identityAndLocation.isBlank()) return emptyList()
     if (linkedInOnly) return listOf("$identityAndLocation site:linkedin.com/in")
-    return listOf(
-        identityAndLocation,
-        "$identityAndLocation (site:facebook.com OR site:instagram.com OR site:threads.net OR site:x.com OR site:bsky.app OR site:mastodon.social)",
-        "$identityAndLocation (site:.gov OR site:.edu OR site:.org)",
-        "$identityAndLocation (site:semanticscholar.org OR site:openlibrary.org)",
-        "$identityAndLocation (site:github.com OR site:stackoverflow.com)",
-    )
+    return buildList {
+        add(identityAndLocation)
+        add("$identityAndLocation (site:facebook.com OR site:instagram.com OR site:threads.net OR site:x.com OR site:bsky.app OR site:mastodon.social)")
+        add("$identityAndLocation (site:.gov OR site:.edu OR site:.org)")
+        add("$identityAndLocation (site:semanticscholar.org OR site:openlibrary.org)")
+        if (Regex("\\bgithub\\b", RegexOption.IGNORE_CASE).containsMatchIn(freeText)) {
+            add("$identityAndLocation site:github.com")
+        }
+        if (Regex("\\bstack\\s*overflow\\b", RegexOption.IGNORE_CASE).containsMatchIn(freeText)) {
+            add("$identityAndLocation site:stackoverflow.com")
+        }
+    }
 }
+
+class DuckDuckGoPublicReferencesProvider(client: PublicApiClient = HttpPublicApiClient()) : DirectApiProvider(
+    id = "duckduckgo_web",
+    displayName = "DuckDuckGo public web references",
+    category = SourceCategory.PUBLIC_RECORDS,
+    sourceUrl = { query -> ProviderUrlBuilder.query("https://duckduckgo.com", "q", query.searchText()) },
+    client = client,
+) {
+    override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> =
+        fetchQueries(query, listOf(query.searchText()))
+
+    override suspend fun search(
+        query: PeopleSearchQuery,
+        pageDepth: Int,
+        breadthLevel: Int,
+    ): List<PersonSearchResult> {
+        val normalized = query.normalized()
+        val searches = buildList {
+            add(normalized.searchText())
+            if (breadthLevel > 0) add(normalized.duckDuckGoBroadQuery())
+        }.filter(String::isNotBlank).distinct()
+        return fetchQueries(normalized, searches)
+    }
+
+    private suspend fun fetchQueries(
+        query: PeopleSearchQuery,
+        searches: List<String>,
+    ): List<PersonSearchResult> = searches.flatMap { search ->
+        val url = "https://html.duckduckgo.com/html/?q=${ProviderUrlBuilder.encode(search)}&kl=us-en"
+        parseDuckDuckGoResults(client.get(url))
+            .filterNot { it.url.isProhibitedReference() }
+            .map { item ->
+                result(query, item.url.hashCode().toString(), item.title, item.description, item.url)
+            }
+    }.distinctBy { it.url }
+}
+
+private fun PeopleSearchQuery.duckDuckGoBroadQuery(): String = listOf(
+    personName(),
+    city,
+    county,
+    state,
+    country,
+    company,
+    emailDomain,
+    username,
+    freeText,
+).filter(String::isNotBlank).joinToString(" ")
+
+private fun parseDuckDuckGoResults(html: String): List<RssItem> {
+    val links = Regex(
+        "(?is)<a[^>]+class=\"[^\"]*result__a[^\"]*\"[^>]+href=\"([^\"]+)\"[^>]*>(.*?)</a>",
+    ).findAll(html).toList()
+    return links.mapIndexedNotNull { index, link ->
+        val regionEnd = links.getOrNull(index + 1)?.range?.first ?: html.length
+        val region = html.substring(link.range.last + 1, regionEnd)
+        val description = Regex(
+            "(?is)class=\"[^\"]*result__snippet[^\"]*\"[^>]*>(.*?)</(?:a|div|span)>",
+        ).find(region)?.groupValues?.get(1).orEmpty()
+        val url = link.groupValues[1].duckDuckGoDestinationUrl()
+        RssItem(
+            title = cleanHtml(link.groupValues[2]),
+            description = cleanHtml(description),
+            url = url,
+        ).takeIf { it.title.isNotBlank() && it.url.startsWith("https://") }
+    }
+}
+
+private fun String.duckDuckGoDestinationUrl(): String = runCatching {
+    val normalized = replace("&amp;", "&").let { href ->
+        if (href.startsWith("//")) "https:$href" else href
+    }
+    val uri = URI(normalized)
+    if (!uri.host.orEmpty().endsWith("duckduckgo.com")) return@runCatching normalized
+    val encodedDestination = uri.rawQuery.orEmpty().split('&')
+        .firstOrNull { it.startsWith("uddg=") }
+        ?.substringAfter('=')
+        .orEmpty()
+    URLDecoder.decode(encodedDestination, StandardCharsets.UTF_8.name())
+}.getOrDefault("")
 
 private val PROHIBITED_REFERENCE_HOSTS = setOf(
     "fastpeoplesearch.com",
@@ -176,6 +308,14 @@ private val PROHIBITED_REFERENCE_HOSTS = setOf(
     "contactout.com",
     "wiza.co",
     "publicrecords.info",
+    "mylife.com",
+    "voterrecords.com",
+    "cyberbackgroundchecks.com",
+    "myheritage.com",
+    "whitepages.com",
+    "radaris.com",
+    "usphonebook.com",
+    "truepeoplesearch.com",
 )
 
 private fun String.isProhibitedReference(): Boolean = runCatching {
