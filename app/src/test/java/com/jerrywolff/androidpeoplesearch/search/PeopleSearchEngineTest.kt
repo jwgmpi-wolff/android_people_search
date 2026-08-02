@@ -14,6 +14,15 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class PeopleSearchEngineTest {
     @Test
+    fun providerPresentationPrioritizesWebAndSocialBeforeDeveloperSources() {
+        assertEquals(
+            listOf("bing_web", "bing_linkedin", "bluesky"),
+            ProviderCatalog.providers.take(3).map { it.id },
+        )
+        assertEquals(listOf("github", "stackoverflow"), ProviderCatalog.providers.takeLast(2).map { it.id })
+    }
+
+    @Test
     fun searchRunsEveryCompliantCategoryAutomatically() = runBlocking {
         val calls = AtomicInteger()
         val providers = listOf(
@@ -169,6 +178,37 @@ class PeopleSearchEngineTest {
     }
 
     @Test
+    fun webAndSocialResultsRankAheadOfDeveloperProfiles() = runBlocking {
+        val query = PeopleSearchQuery(fullName = "Claude Nazon")
+        val web = rankedProvider(
+            providerId = "bing_web",
+            category = SourceCategory.PUBLIC_RECORDS,
+            title = "Claude Nazon public profile",
+            confidenceScore = 20,
+            direct = false,
+        )
+        val github = rankedProvider(
+            providerId = "bing_web_github",
+            category = SourceCategory.PROFESSIONAL,
+            title = "Claude Nazon",
+            confidenceScore = 100,
+            direct = true,
+            resultUrl = "https://github.com/claude-nazon",
+        )
+        val stackOverflow = rankedProvider(
+            providerId = "stackoverflow",
+            category = SourceCategory.PROFESSIONAL,
+            title = "Claude Nazon",
+            confidenceScore = 90,
+            direct = true,
+        )
+
+        val report = PeopleSearchEngine(listOf(github, stackOverflow, web)).searchWithDiagnostics(query)
+
+        assertEquals(listOf("bing_web", "bing_web_github", "stackoverflow"), report.results.map { it.providerId })
+    }
+
+    @Test
     fun searchForwardsBreadthLevelWithoutChangingQuery() = runBlocking {
         val submitted = PeopleSearchQuery(fullName = "Claude Nazon", state = "Florida")
         var receivedQuery: PeopleSearchQuery? = null
@@ -234,5 +274,36 @@ class PeopleSearchEngineTest {
                 ),
             )
         }
+    }
+
+    private fun rankedProvider(
+        providerId: String,
+        category: SourceCategory,
+        title: String,
+        confidenceScore: Int,
+        direct: Boolean,
+        resultUrl: String = "https://example.com/$providerId/claude-nazon",
+    ) = object : SearchProvider {
+        override val id = providerId
+        override val displayName = providerId
+        override val category = category
+        override val requiresPayment = false
+        override val requiresAuth = false
+        override val lastVerified = "2026-08-01"
+        override fun buildSearchUrl(query: PeopleSearchQuery): Uri = error("Not used")
+        override suspend fun search(query: PeopleSearchQuery): List<PersonSearchResult> = listOf(
+            PersonSearchResult(
+                id = providerId,
+                providerId = providerId,
+                title = title,
+                description = "Public profile for $title",
+                url = resultUrl,
+                sourceName = providerId,
+                category = category,
+                confidence = ConfidenceLevel.HIGH,
+                confidenceScore = confidenceScore,
+                isDirectResult = direct,
+            ),
+        )
     }
 }

@@ -4,12 +4,12 @@ object ProviderCatalog {
     val providers: List<SearchProvider> = listOf(
         BingPublicReferencesProvider(),
         BingPublicReferencesProvider(linkedInOnly = true),
+        BlueskyActorsApiProvider(),
         CountyOfficialReferencesProvider(),
         KingCountyEmployeesProvider(),
         NpiRegistryApiProvider(),
         SemanticScholarAuthorsApiProvider(),
         OpenLibraryAuthorsApiProvider(),
-        BlueskyActorsApiProvider(),
         GitHubUsersApiProvider(),
         StackOverflowUsersApiProvider(),
     )

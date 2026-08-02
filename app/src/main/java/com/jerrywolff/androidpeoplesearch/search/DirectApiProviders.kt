@@ -159,8 +159,10 @@ private fun PeopleSearchQuery.bingBroadQueries(linkedInOnly: Boolean): List<Stri
     if (linkedInOnly) return listOf("$identityAndLocation site:linkedin.com/in")
     return listOf(
         identityAndLocation,
-        "$identityAndLocation (site:github.com OR site:bsky.app OR site:stackoverflow.com OR site:semanticscholar.org OR site:openlibrary.org)",
+        "$identityAndLocation (site:facebook.com OR site:instagram.com OR site:threads.net OR site:x.com OR site:bsky.app OR site:mastodon.social)",
         "$identityAndLocation (site:.gov OR site:.edu OR site:.org)",
+        "$identityAndLocation (site:semanticscholar.org OR site:openlibrary.org)",
+        "$identityAndLocation (site:github.com OR site:stackoverflow.com)",
     )
 }
 

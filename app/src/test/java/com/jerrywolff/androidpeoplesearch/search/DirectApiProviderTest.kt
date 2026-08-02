@@ -192,11 +192,13 @@ class DirectApiProviderTest {
         requestedUrls.clear()
         provider.search(query, pageDepth = 1, breadthLevel = 1)
 
-        assertEquals(5, requestedUrls.size)
+        assertEquals(7, requestedUrls.size)
         assertTrue(requestedUrls.any { it.contains("Claude%20Nazon%20Florida") })
         assertTrue(requestedUrls.any { it.contains("%22Claude%20Nazon%22") })
-        assertTrue(requestedUrls.any { it.contains("site%3Agithub.com") && it.contains("site%3Absky.app") })
+        assertTrue(requestedUrls.any { it.contains("site%3Afacebook.com") && it.contains("site%3Absky.app") })
         assertTrue(requestedUrls.any { it.contains("site%3A.gov") && it.contains("site%3A.edu") })
+        assertTrue(requestedUrls.any { it.contains("site%3Asemanticscholar.org") && it.contains("site%3Aopenlibrary.org") })
+        assertTrue(requestedUrls.any { it.contains("site%3Agithub.com") && it.contains("site%3Astackoverflow.com") })
     }
 
     @Test

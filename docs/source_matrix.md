@@ -7,7 +7,7 @@ County choices load from the official, keyless Census TIGERweb State/County laye
 | Source | Category | Auth | Paid results excluded | Retrieval | Search URL pattern |
 |---|---|---:|---:|---|---|
 | Google | Public web | No | Yes | Browser link | `google.com/search?q={query}` |
-| Bing public web references | Publicly accessible records | No | Yes | Refined RSS retrieval plus exact-identity fallback at configured depth; unchanged resubmission adds unquoted name/location, GitHub/Bluesky/Stack Overflow/Semantic Scholar/Open Library, and `.gov/.edu/.org` passes; domain/context refinements, partial-result recovery, URL deduplication | `bing.com/search?q={query}&format=rss&first={offset}` |
+| Bing public web references | Publicly accessible records | No | Yes | Refined RSS retrieval plus exact-identity fallback at configured depth; unchanged resubmission adds unquoted name/location, social-profile, `.gov/.edu/.org`, academic/author, then supplemental GitHub/Stack Overflow passes; domain/context refinements, partial-result recovery, URL deduplication | `bing.com/search?q={query}&format=rss&first={offset}` |
 | LinkedIn public references | Publicly accessible records | No | Yes | Bing-indexed refined retrieval plus exact-name `site:linkedin.com/in` fallback at configured depth; unchanged resubmission adds an unquoted constrained pass; partial-result recovery | Bing RSS `site:linkedin.com/in` |
 | DuckDuckGo | Public web | No | Yes | Browser link | `duckduckgo.com/?q={query}` |
 | Wikipedia | Public web | No | No | Inactive: snippet search produced unrelated identity results | Removed 2026-08-01 |

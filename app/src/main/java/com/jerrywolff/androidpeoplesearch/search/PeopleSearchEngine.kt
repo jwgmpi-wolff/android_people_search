@@ -5,6 +5,7 @@ import com.jerrywolff.androidpeoplesearch.model.PersonSearchResult
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import java.net.URI
 import java.net.SocketTimeoutException
 
 data class ProviderFailure(val providerName: String, val reason: String = "Unavailable")
@@ -59,7 +60,8 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
             results = deduplicatedOutcomes.flatMap { it.results }
                 .distinctBy { it.url }
                 .sortedWith(
-                    compareByDescending<PersonSearchResult> { it.isDirectResult }
+                    compareBy<PersonSearchResult> { it.isSupplementalDeveloperSource() }
+                        .thenByDescending { it.isDirectResult }
                         .thenByDescending { it.confidenceScore }
                         .thenBy { it.sourceName },
                 ),
@@ -81,6 +83,13 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
         val failure: ProviderFailure?,
     )
 }
+
+private fun PersonSearchResult.isSupplementalDeveloperSource(): Boolean =
+    providerId == "github" || providerId == "stackoverflow" || runCatching {
+        val host = URI(url).host.orEmpty().lowercase().removePrefix("www.")
+        host == "github.com" || host.endsWith(".github.com") ||
+            host == "stackoverflow.com" || host.endsWith(".stackoverflow.com")
+    }.getOrDefault(false)
 
 private fun Throwable.userFacingReason(): String = when {
     this is PublicApiHttpException && statusCode == 429 -> "Rate limited"
