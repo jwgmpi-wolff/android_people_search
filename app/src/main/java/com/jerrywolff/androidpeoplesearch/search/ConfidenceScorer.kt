@@ -14,7 +14,9 @@ object ConfidenceScorer {
             normalized.personName().takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Name") }
             normalized.company.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Company") }
             normalized.city.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("City") }
+            normalized.county.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("County") }
             normalized.state.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("State") }
+            normalized.country.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Country") }
             normalized.username.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Username") }
             normalized.emailDomain.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Domain") }
         }

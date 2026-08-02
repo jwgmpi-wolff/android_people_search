@@ -14,4 +14,6 @@ class MlKitGeminiNanoAssistant(
     override suspend fun summarizeResults(results: List<PersonSearchResult>): AiSummary = fallback.summarizeResults(results)
     override suspend fun explainMatch(query: PeopleSearchQuery, result: PersonSearchResult): String = fallback.explainMatch(query, result)
     override suspend fun normalizeName(input: String): NormalizedName = fallback.normalizeName(input)
+    override suspend fun refineSearchQuery(query: PeopleSearchQuery, input: String): SearchRefinement =
+        fallback.refineSearchQuery(query, input)
 }

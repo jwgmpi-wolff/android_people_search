@@ -17,6 +17,7 @@ data class PeopleSearchQuery(
     val lastName: String = "",
     val fullName: String = "",
     val city: String = "",
+    val county: String = "",
     val state: String = "",
     val country: String = "",
     val company: String = "",
@@ -26,7 +27,8 @@ data class PeopleSearchQuery(
 ) {
     fun normalized(): PeopleSearchQuery = copy(
         firstName = firstName.clean(), lastName = lastName.clean(), fullName = fullName.clean(),
-        city = city.clean(), state = state.clean(), country = country.clean(), company = company.clean(),
+        city = city.clean(), county = county.clean(), state = state.clean(), country = country.clean(),
+        company = company.clean(),
         emailDomain = emailDomain.clean().removePrefix("@"), username = username.clean().removePrefix("@"),
         freeText = freeText.clean(),
     )
@@ -34,7 +36,7 @@ data class PeopleSearchQuery(
     fun personName(): String = fullName.ifBlank { listOf(firstName, lastName).filter(String::isNotBlank).joinToString(" ") }
 
     fun searchText(): String = listOf(
-        personName().quoteIfMultiword(), city, state, country, company.quoteIfMultiword(),
+        personName().quoteIfMultiword(), city, county, state, country, company.quoteIfMultiword(),
         emailDomain.takeIf(String::isNotBlank)?.let { "site:$it" }.orEmpty(), username, freeText,
     ).filter(String::isNotBlank).joinToString(" ")
 
@@ -60,6 +62,7 @@ data class PersonSearchResult(
     val confidenceScore: Int,
     val extractedSignals: List<String> = emptyList(),
     val retrievedAtEpochMillis: Long = System.currentTimeMillis(),
+    val isDirectResult: Boolean = false,
 )
 
 data class AiSummary(val headline: String, val summary: String, val caveats: List<String>)
@@ -67,7 +70,7 @@ data class NormalizedName(val givenName: String, val familyName: String, val dis
 data class SearchSession(val query: PeopleSearchQuery, val resultCount: Int, val searchedAtEpochMillis: Long)
 
 data class AppSettings(
-    val enabledCategories: Set<SourceCategory> = SourceCategory.entries.toSet(),
     val historyEnabled: Boolean = false,
     val privacyMode: Boolean = true,
+    val pageDepth: Int = 5,
 )

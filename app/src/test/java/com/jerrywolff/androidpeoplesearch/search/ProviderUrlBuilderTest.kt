@@ -17,4 +17,5 @@ class ProviderUrlBuilderTest {
     fun catalog_excludesPaidAndAuthenticatedProviders() {
         assertFalse(ProviderCatalog.providers.any { it.requiresPayment || it.requiresAuth })
     }
+
 }

@@ -21,4 +21,17 @@ class ConfidenceScorerTest {
         val score = ConfidenceScorer.score(PeopleSearchQuery(fullName = "Ada Lovelace"), SourceCategory.SOCIAL, "Unrelated profile")
         assertEquals(ConfidenceLevel.LOW, score.level)
     }
+
+    @Test
+    fun countyAndCountryAreExplainableSignals() {
+        val query = PeopleSearchQuery(fullName = "Ada Lovelace", county = "Middlesex", country = "United Kingdom")
+
+        val score = ConfidenceScorer.score(
+            query,
+            SourceCategory.PUBLIC_RECORDS,
+            "Ada Lovelace, Middlesex, United Kingdom",
+        )
+
+        assertTrue(score.signals.containsAll(listOf("Name", "County", "Country")))
+    }
 }

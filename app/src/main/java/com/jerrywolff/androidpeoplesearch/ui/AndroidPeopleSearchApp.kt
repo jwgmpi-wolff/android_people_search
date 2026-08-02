@@ -59,10 +59,10 @@ fun AndroidPeopleSearchApp(viewModel: PeopleSearchViewModel = viewModel()) {
         },
     ) { padding ->
         NavHost(navController, Route.HOME, Modifier.fillMaxSize().padding(padding)) {
-            composable(Route.HOME) { HomeScreen(state, viewModel::updateQuery, viewModel::clearQuery, { viewModel.search { navController.navigate(Route.RESULTS) } }, { navController.navigate(Route.SETTINGS) }) }
-            composable(Route.RESULTS) { ResultsScreen(state, onBack = { navController.popBackStack() }, onSelect = { viewModel.select(it); navController.navigate(Route.DETAIL) }, onSummarize = { viewModel.summarize { navController.navigate(Route.SUMMARY) } }) }
+            composable(Route.HOME) { HomeScreen(state, viewModel::updateQuery, viewModel::selectState, viewModel::refineSearch, viewModel::clearQuery) { viewModel.search { navController.navigate(Route.RESULTS) } } }
+            composable(Route.RESULTS) { ResultsScreen(state, onBack = { navController.popBackStack() }, onSelect = { viewModel.select(it); navController.navigate(Route.DETAIL) }) }
             composable(Route.DETAIL) { state.selectedResult?.let { DetailScreen(state.query, it, viewModel::explain, navController::popBackStack) } }
-            composable(Route.SETTINGS) { SettingsScreen(state, viewModel::setCategory, viewModel::setHistory, viewModel::setPrivacyMode, viewModel::clearLocalData, navController::popBackStack) }
+            composable(Route.SETTINGS) { SettingsScreen(state, viewModel::setPageDepth, viewModel::setHistory, viewModel::setPrivacyMode, viewModel::clearLocalData, navController::popBackStack) }
             composable(Route.SUMMARY) { SummaryScreen(state.summary, navController::popBackStack) }
             composable(Route.PRIVACY) { PrivacyScreen(navController::popBackStack) }
             composable(Route.ABOUT) { AboutScreen(navController::popBackStack) }

@@ -15,8 +15,14 @@ class PeopleSearchQueryTest {
 
     @Test
     fun searchText_includesQuotedNameAndFilters() {
-        val text = PeopleSearchQuery(fullName = "Ada Lovelace", city = "London", company = "Analytical Engine").searchText()
-        assertEquals("\"Ada Lovelace\" London \"Analytical Engine\"", text)
+        val text = PeopleSearchQuery(
+            fullName = "Ada Lovelace",
+            city = "London",
+            county = "Greater London",
+            country = "United Kingdom",
+            company = "Analytical Engine",
+        ).searchText()
+        assertEquals("\"Ada Lovelace\" London Greater London United Kingdom \"Analytical Engine\"", text)
         assertFalse(PeopleSearchQuery(freeText = "researcher").isBlank())
     }
 }

@@ -15,10 +15,12 @@ class UrlSearchProvider(
 ) : SearchProvider {
     override val requiresPayment: Boolean = false
 
-    override fun buildSearchUrl(query: PeopleSearchQuery): Uri = Uri.parse(urlFactory(query.normalized()))
+    internal fun buildSearchUrlString(query: PeopleSearchQuery): String = urlFactory(query.normalized())
+
+    override fun buildSearchUrl(query: PeopleSearchQuery): Uri = Uri.parse(buildSearchUrlString(query))
 
     override suspend fun search(query: PeopleSearchQuery): List<PersonSearchResult> {
-        val url = buildSearchUrl(query).toString()
+        val url = buildSearchUrlString(query)
         val score = ConfidenceScorer.score(query, category, "${query.searchText()} $displayName")
         return listOf(
             PersonSearchResult(

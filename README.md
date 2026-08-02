@@ -4,12 +4,28 @@ A native Android app that generates attributed search targets for free, legally 
 
 Results are leads, not verified identities. The app labels confidence, links to every source, keeps history off by default, and provides a clear-local-data action.
 
+## Direct download
+
+Download the installable Android APK from either repository mirror:
+
+- [jerrywolff_microsoft APK](https://github.com/jerrywolff_microsoft/android_people_search/releases/latest/download/android-people-search-1.0.0.apk)
+- [jwgmpi-wolff APK](https://github.com/jwgmpi-wolff/android_people_search/releases/latest/download/android-people-search-1.0.0.apk)
+
+Allow installation from your browser or file manager when Android prompts, or install from a connected computer:
+
+```powershell
+adb install -r android-people-search-1.0.0.apk
+```
+
 ## Features
 
 - Kotlin, Jetpack Compose, Material 3, and Navigation Compose
-- Public web, profile, professional, news, domain, username, and government-record search links
-- Browser Custom Tabs instead of brittle or noncompliant scraping
-- Deterministic on-device query normalization, duplicate removal, confidence scoring, explanations, and summaries
+- Public web, profile, professional, news, domain, username, and government-record search targets
+- Every search automatically runs all compliant direct-record and public-index providers and shows a final record count for each source
+- County filtering, U.S. state and country selectors, and an on-device search-assistant chat for applying conversational specifics
+- A persisted 1–5 page-depth setting controls direct retrieval (up to 20 records per page and 100 per source)
+- Every compliant returned record remains visible; explainable confidence signals communicate match strength without asserting identity
+- Deterministic on-device query refinement, normalization, duplicate removal, confidence scoring, explanations, and summaries
 - Compile-safe Gemini Nano/ML Kit GenAI adapter with automatic local fallback
 - DataStore settings and opt-in-only local history
 - Adaptive three-person launcher icon, including round and legacy variants
@@ -106,6 +122,8 @@ GitHub authentication is required only for creating or pushing the remote reposi
 - [Source matrix](docs/source_matrix.md)
 - [Roadmap](ROADMAP.md)
 
-## Known limitation
+## Direct results and limitations
 
-The ML Kit Gemini Nano adapter is intentionally dependency-free and reports unavailable until a supported-device GenAI dependency/version matrix is selected. Every AI feature works now through deterministic local logic. Search targets open in a browser; the app does not claim to parse or aggregate third-party pages.
+Paginated direct APIs request the configured 1–5 pages and stop early when a source returns a short page. Bing public references, indexed public LinkedIn references, and official county references are grouped as publicly accessible records while retaining separate provenance labels. Selecting any U.S. state or D.C. loads its official county or county-equivalent names from Census TIGERweb; manual entry remains available. Selecting one enables indexed official `.gov` references for that location. The King County provider additionally submits its official exact-name employee-directory form and returns public work identity fields, excluding phone and mailstop data. Bing RSS does not scrape LinkedIn or require credentials. Prohibited people-finder and contact-enrichment domains are filtered. After retrieval, every compliant provider record is deduplicated and displayed with its confidence score before the app reports each source's displayed record count. Clean no-match sources show `0 found`; failures distinguish `Rate limited`, `Timed out`, `Source unavailable`, and other unavailable conditions. Search forms themselves are excluded from results. The app does not crawl, bypass login, or access private profiles.
+
+The ML Kit Gemini Nano adapter is intentionally dependency-free and reports unavailable until a supported-device GenAI dependency/version matrix is selected. Every AI feature works now through deterministic local logic.
