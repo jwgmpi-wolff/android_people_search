@@ -168,6 +168,37 @@ class PeopleSearchEngineTest {
         assertEquals(listOf(SourceResultCount("github", 1, false)), report.sourceCounts)
     }
 
+    @Test
+    fun searchForwardsBreadthLevelWithoutChangingQuery() = runBlocking {
+        val submitted = PeopleSearchQuery(fullName = "Claude Nazon", state = "Florida")
+        var receivedQuery: PeopleSearchQuery? = null
+        var receivedBreadth = -1
+        val provider = object : SearchProvider {
+            override val id = "capture"
+            override val displayName = "capture"
+            override val category = SourceCategory.WEB
+            override val requiresPayment = false
+            override val requiresAuth = false
+            override val lastVerified = "2026-08-01"
+            override fun buildSearchUrl(query: PeopleSearchQuery): Uri = error("Not used")
+            override suspend fun search(query: PeopleSearchQuery): List<PersonSearchResult> = emptyList()
+            override suspend fun search(
+                query: PeopleSearchQuery,
+                pageDepth: Int,
+                breadthLevel: Int,
+            ): List<PersonSearchResult> {
+                receivedQuery = query
+                receivedBreadth = breadthLevel
+                return emptyList()
+            }
+        }
+
+        PeopleSearchEngine(listOf(provider)).searchWithDiagnostics(submitted, pageDepth = 2, breadthLevel = 1)
+
+        assertEquals(submitted, receivedQuery)
+        assertEquals(1, receivedBreadth)
+    }
+
     private fun fakeProvider(
         providerId: String,
         sourceCategory: SourceCategory,

@@ -15,4 +15,6 @@ interface SearchProvider {
     fun buildSearchUrl(query: PeopleSearchQuery): Uri
     suspend fun search(query: PeopleSearchQuery): List<PersonSearchResult>
     suspend fun search(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> = search(query)
+    suspend fun search(query: PeopleSearchQuery, pageDepth: Int, breadthLevel: Int): List<PersonSearchResult> =
+        search(query, pageDepth)
 }

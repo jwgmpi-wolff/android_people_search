@@ -408,11 +408,12 @@ Behavior:
 7. Require every requested name token or the compact full name in source title, description, or URL. If no name was supplied, require the supplied username.
 8. Use populated company, city, county, state, domain, country, username, and free-text fields to refine provider requests and add confidence only when source-observed. Do not reject an exact-name record merely because an index snippet omits a populated refinement.
 9. For Bing public web and LinkedIn references, include domain and free-text context in the populated-field query, run both that query and the exact-identity fallback for the configured page depth, preserve successful earlier records if a later request fails, then deduplicate URLs.
-10. Never inject submitted fields into result descriptions or confidence evidence.
-11. Deduplicate each provider result list by URL and report counts from the exact visible per-provider lists.
-12. Merge and deduplicate globally by URL.
-13. Sort direct results first, then confidence descending, then source name.
-14. Keep identity-matching low-confidence leads visible; reject candidates that fail identity evidence.
+10. Track consecutive submissions of the same normalized fields. An unchanged resubmission must make fresh network requests and add: an unquoted name plus city/state query; a targeted query across GitHub, Bluesky, Stack Overflow, Semantic Scholar, and Open Library; an authoritative `.gov/.edu/.org` query; and an unquoted `site:linkedin.com/in` query for LinkedIn. Every direct provider must also rerun live. Field edits reset this broader pass. Keep source-observed identity filtering unchanged.
+11. Never inject submitted fields into result descriptions or confidence evidence.
+12. Deduplicate each provider result list by URL and report counts from the exact visible per-provider lists.
+13. Merge and deduplicate globally by URL.
+14. Sort direct results first, then confidence descending, then source name.
+15. Keep identity-matching low-confidence leads visible; reject candidates that fail identity evidence.
 
 ## Confidence scoring
 

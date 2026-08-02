@@ -25,11 +25,15 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
     suspend fun search(query: PeopleSearchQuery, pageDepth: Int = 5): List<PersonSearchResult> =
         searchWithDiagnostics(query, pageDepth).results
 
-    suspend fun searchWithDiagnostics(query: PeopleSearchQuery, pageDepth: Int = 5): SearchReport = coroutineScope {
+    suspend fun searchWithDiagnostics(
+        query: PeopleSearchQuery,
+        pageDepth: Int = 5,
+        breadthLevel: Int = 0,
+    ): SearchReport = coroutineScope {
         val outcomes = providers.filter { !it.requiresPayment && !it.requiresAuth }
             .map { provider ->
                 async {
-                    runCatching { provider.search(query, pageDepth.coerceIn(1, 5)) }
+                    runCatching { provider.search(query, pageDepth.coerceIn(1, 5), breadthLevel.coerceAtLeast(0)) }
                         .fold(
                             onSuccess = { ProviderOutcome(provider.displayName, it, null) },
                             onFailure = {

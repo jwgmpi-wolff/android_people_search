@@ -45,6 +45,8 @@ class PeopleSearchViewModel(application: Application) : AndroidViewModel(applica
     private val assistant = LocalHeuristicAssistant()
     private val settingsRepository = SettingsRepository(application)
     private val _state = MutableStateFlow(SearchUiState())
+    private var lastSubmittedQuery: PeopleSearchQuery? = null
+    private var repeatedSearchCount = 0
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
 
     init {
@@ -127,6 +129,9 @@ class PeopleSearchViewModel(application: Application) : AndroidViewModel(applica
             _state.update { it.copy(message = "Enter a name, username, domain, or free-text query.") }
             return
         }
+        repeatedSearchCount = if (query == lastSubmittedQuery) repeatedSearchCount + 1 else 0
+        lastSubmittedQuery = query
+        val breadthLevel = repeatedSearchCount
         viewModelScope.launch {
             _state.update {
                 it.copy(
@@ -139,7 +144,7 @@ class PeopleSearchViewModel(application: Application) : AndroidViewModel(applica
                     message = null,
                 )
             }
-            val report = engine.searchWithDiagnostics(query, state.value.settings.pageDepth)
+            val report = engine.searchWithDiagnostics(query, state.value.settings.pageDepth, breadthLevel)
             val review = assistant.summarizeResults(report.results)
             settingsRepository.record(SearchSession(query, report.results.size, System.currentTimeMillis()))
             _state.update {

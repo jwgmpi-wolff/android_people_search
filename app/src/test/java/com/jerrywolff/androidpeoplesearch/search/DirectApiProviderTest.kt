@@ -176,6 +176,30 @@ class DirectApiProviderTest {
     }
 
     @Test
+    fun unchangedRefreshAddsUnquotedBrowserStyleQuery() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val provider = BingPublicReferencesProvider(
+            client = PublicApiClient { url ->
+                requestedUrls += url
+                "<?xml version=\"1.0\"?><rss><channel/></rss>"
+            },
+        )
+        val query = PeopleSearchQuery(fullName = "Claude Nazon", state = "Florida")
+
+        provider.search(query, pageDepth = 1, breadthLevel = 0)
+        assertEquals(2, requestedUrls.size)
+
+        requestedUrls.clear()
+        provider.search(query, pageDepth = 1, breadthLevel = 1)
+
+        assertEquals(5, requestedUrls.size)
+        assertTrue(requestedUrls.any { it.contains("Claude%20Nazon%20Florida") })
+        assertTrue(requestedUrls.any { it.contains("%22Claude%20Nazon%22") })
+        assertTrue(requestedUrls.any { it.contains("site%3Agithub.com") && it.contains("site%3Absky.app") })
+        assertTrue(requestedUrls.any { it.contains("site%3A.gov") && it.contains("site%3A.edu") })
+    }
+
+    @Test
     fun bingKeepsSuccessfulRecordsWhenFallbackRequestFails() = runBlocking {
         var requestCount = 0
         val provider = BingPublicReferencesProvider(

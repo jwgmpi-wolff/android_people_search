@@ -66,12 +66,31 @@ class BingPublicReferencesProvider(
     client = client,
 ) {
     override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> {
+        return fetchPages(query, pageDepth, breadthLevel = 0)
+    }
+
+    override suspend fun search(
+        query: PeopleSearchQuery,
+        pageDepth: Int,
+        breadthLevel: Int,
+    ): List<PersonSearchResult> = fetchPages(query.normalized(), pageDepth.coerceIn(1, 5), breadthLevel)
+
+    private suspend fun fetchPages(
+        query: PeopleSearchQuery,
+        pageDepth: Int,
+        breadthLevel: Int,
+    ): List<PersonSearchResult> {
         val refinedSearch = query.bingReferenceQuery(linkedInOnly)
         if (refinedSearch.isBlank()) return emptyList()
-        val searches = listOf(
-            refinedSearch to pageDepth,
-            query.bingIdentityQuery(linkedInOnly) to pageDepth,
-        ).distinctBy { it.first }
+        val searches = buildList {
+            add(refinedSearch to pageDepth)
+            add(query.bingIdentityQuery(linkedInOnly) to pageDepth)
+            if (breadthLevel > 0) {
+                query.bingBroadQueries(linkedInOnly).forEachIndexed { index, search ->
+                    add(search to if (index == 0) pageDepth else 1)
+                }
+            }
+        }.filter { it.first.isNotBlank() }.distinctBy { it.first }
         val results = mutableListOf<PersonSearchResult>()
         var lastFailure: Throwable? = null
         searches.forEach { (search, pages) ->
@@ -131,6 +150,19 @@ private fun PeopleSearchQuery.bingIdentityQuery(linkedInOnly: Boolean): String =
     username,
     "site:linkedin.com/in".takeIf { linkedInOnly }.orEmpty(),
 ).filter(String::isNotBlank).joinToString(" ")
+
+private fun PeopleSearchQuery.bingBroadQueries(linkedInOnly: Boolean): List<String> {
+    val identityAndLocation = listOf(personName(), city, state, username)
+        .filter(String::isNotBlank)
+        .joinToString(" ")
+    if (identityAndLocation.isBlank()) return emptyList()
+    if (linkedInOnly) return listOf("$identityAndLocation site:linkedin.com/in")
+    return listOf(
+        identityAndLocation,
+        "$identityAndLocation (site:github.com OR site:bsky.app OR site:stackoverflow.com OR site:semanticscholar.org OR site:openlibrary.org)",
+        "$identityAndLocation (site:.gov OR site:.edu OR site:.org)",
+    )
+}
 
 private val PROHIBITED_REFERENCE_HOSTS = setOf(
     "fastpeoplesearch.com",
