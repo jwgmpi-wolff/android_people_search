@@ -68,8 +68,8 @@ Create a single-module Gradle Android application using Kotlin DSL and a version
 - `compileSdk = 35`.
 - `targetSdk = 35`.
 - `minSdk = 23`.
-- `versionCode = 1`.
-- `versionName = "1.0.0"`.
+- `versionCode = 2`.
+- `versionName = "1.1.0"`.
 - Test runner: `androidx.test.runner.AndroidJUnitRunner`.
 - Compose and generated `BuildConfig` enabled.
 - Vector drawable support library enabled.
@@ -603,7 +603,7 @@ Show:
 
 Privacy copy must state lawful/respectful use, prohibit stalking/harassment/doxxing/credential or private-address discovery, explain no auth/paywall/CAPTCHA/robots bypass, warn that results may be incomplete or inaccurate, and explain history defaults.
 
-About must show version `1.0.0`, Kotlin/Compose architecture, no keys/paid providers/analytics/cloud AI, and attributed Custom Tab behavior.
+About must show version `1.1.0`, Kotlin/Compose architecture, no keys/paid providers/analytics/cloud AI, and attributed Custom Tab behavior.
 
 Use current Compose APIs: auto-mirrored directional icons, typed `menuAnchor` overloads, and `HorizontalDivider`. Avoid deprecated API warnings.
 

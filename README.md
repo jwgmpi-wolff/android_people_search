@@ -8,13 +8,13 @@ Results are leads, not verified identities. The app labels confidence, links to 
 
 Download the installable Android APK from either repository mirror:
 
-- [jerrywolff_microsoft APK](https://github.com/jerrywolff_microsoft/android_people_search/releases/latest/download/android-people-search-1.0.0.apk)
-- [jwgmpi-wolff APK](https://github.com/jwgmpi-wolff/android_people_search/releases/latest/download/android-people-search-1.0.0.apk)
+- [jerrywolff_microsoft APK](https://github.com/jerrywolff_microsoft/android_people_search/releases/latest/download/android-people-search-1.1.0.apk)
+- [jwgmpi-wolff APK](https://github.com/jwgmpi-wolff/android_people_search/releases/latest/download/android-people-search-1.1.0.apk)
 
 Allow installation from your browser or file manager when Android prompts, or install from a connected computer:
 
 ```powershell
-adb install -r android-people-search-1.0.0.apk
+adb install -r android-people-search-1.1.0.apk
 ```
 
 ## Features
