@@ -26,7 +26,7 @@ adb install -r android-people-search-1.0.0.apk
 - A persisted 1–5 page-depth setting controls direct retrieval (up to 20 records per page and 100 per source)
 - Every compliant returned record remains visible; explainable confidence signals communicate match strength without asserting identity
 - Deterministic on-device query refinement, normalization, duplicate removal, confidence scoring, explanations, and summaries
-- Compile-safe Gemini Nano/ML Kit GenAI adapter with automatic local fallback
+- Deterministic on-device assistant with no cloud dependency
 - DataStore settings and opt-in-only local history
 - Adaptive three-person launcher icon, including round and legacy variants
 - Unit tests, Compose smoke test, and GitHub Actions build
@@ -122,8 +122,12 @@ GitHub authentication is required only for creating or pushing the remote reposi
 - [Source matrix](docs/source_matrix.md)
 - [Roadmap](ROADMAP.md)
 
+## Regenerate with GitHub Copilot
+
+The workspace includes the complete [`/regenerate-android-people-search`](.github/prompts/regenerate-android-people-search.prompt.md) prompt. In VS Code Chat, type `/regenerate-android-people-search` or run **Chat: Run Prompt...** and select **Regenerate Android People Search**. The prompt specifies the exact toolchain, providers, settings, UI, privacy controls, tests, CI workflow, and APK completion gates needed to rebuild the app from an empty workspace.
+
 ## Direct results and limitations
 
 Paginated direct APIs request the configured 1–5 pages and stop early when a source returns a short page. Bing public references, indexed public LinkedIn references, and official county references are grouped as publicly accessible records while retaining separate provenance labels. Selecting any U.S. state or D.C. loads its official county or county-equivalent names from Census TIGERweb; manual entry remains available. Selecting one enables indexed official `.gov` references for that location. The King County provider additionally submits its official exact-name employee-directory form and returns public work identity fields, excluding phone and mailstop data. Bing RSS does not scrape LinkedIn or require credentials. Prohibited people-finder and contact-enrichment domains are filtered. After retrieval, every compliant provider record is deduplicated and displayed with its confidence score before the app reports each source's displayed record count. Clean no-match sources show `0 found`; failures distinguish `Rate limited`, `Timed out`, `Source unavailable`, and other unavailable conditions. Search forms themselves are excluded from results. The app does not crawl, bypass login, or access private profiles.
 
-The ML Kit Gemini Nano adapter is intentionally dependency-free and reports unavailable until a supported-device GenAI dependency/version matrix is selected. Every AI feature works now through deterministic local logic.
+Every assistant feature runs through deterministic local logic without a network or device-model dependency.

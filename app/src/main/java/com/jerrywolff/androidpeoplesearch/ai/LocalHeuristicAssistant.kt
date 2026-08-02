@@ -8,8 +8,6 @@ import com.jerrywolff.androidpeoplesearch.model.PersonSearchResult
 import java.util.Locale
 
 class LocalHeuristicAssistant : AiAssistant {
-    override suspend fun isAvailable() = true
-
     override suspend fun summarizeResults(results: List<PersonSearchResult>): AiSummary {
         val categories = results.groupingBy { it.category.label }.eachCount().entries.sortedByDescending { it.value }
         val sources = results.groupingBy { it.sourceName }.eachCount().entries.sortedByDescending { it.value }

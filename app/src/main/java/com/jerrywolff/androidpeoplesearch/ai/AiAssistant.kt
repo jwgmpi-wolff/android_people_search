@@ -12,7 +12,6 @@ data class SearchRefinement(
 )
 
 interface AiAssistant {
-    suspend fun isAvailable(): Boolean
     suspend fun summarizeResults(results: List<PersonSearchResult>): AiSummary
     suspend fun explainMatch(query: PeopleSearchQuery, result: PersonSearchResult): String
     suspend fun normalizeName(input: String): NormalizedName

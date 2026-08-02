@@ -16,25 +16,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Launch
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteSweep
-import androidx.compose.material.icons.outlined.Launch
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -123,7 +124,7 @@ fun HomeScreen(state: SearchUiState, update: (PeopleSearchQuery) -> Unit, select
                         IconButton(
                             onClick = { refine(chatInput); chatInput = "" },
                             enabled = chatInput.isNotBlank(),
-                        ) { Icon(Icons.Outlined.Send, "Send details") }
+                        ) { Icon(Icons.AutoMirrored.Outlined.Send, "Send details") }
                     },
                 )
             }
@@ -153,7 +154,7 @@ private fun StateDropdown(value: String, modifier: Modifier = Modifier.fillMaxWi
         OutlinedTextField(
             value = value.ifBlank { "Any state" },
             onValueChange = {},
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
             readOnly = true,
             label = { Text("State") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
@@ -185,7 +186,7 @@ private fun CountyDropdown(
             OutlinedTextField(
                 value = value,
                 onValueChange = update,
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth(),
                 label = { Text(if (isLoading) "Loading counties..." else "County") },
                 singleLine = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded && counties.isNotEmpty()) },
@@ -220,7 +221,7 @@ private fun CountryDropdown(value: String, update: (String) -> Unit) {
         OutlinedTextField(
             value = value.ifBlank { "Any country" },
             onValueChange = {},
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
             readOnly = true,
             label = { Text("Country") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
@@ -309,7 +310,7 @@ private fun ResultCard(result: PersonSearchResult, onSelect: (PersonSearchResult
             Text(result.description, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(result.url, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip({ openUrl(context, result.url) }, { Text("Open source") }, leadingIcon = { Icon(Icons.Outlined.Launch, null) })
+                AssistChip({ openUrl(context, result.url) }, { Text("Open source") }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Launch, null) })
                 AssistChip({ copyUrl(context, result.url) }, { Text("Copy link") }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) })
             }
         }
@@ -334,7 +335,7 @@ fun DetailScreen(query: PeopleSearchQuery, result: PersonSearchResult, explain: 
         item { DetailBlock("Source URL", result.url) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button({ openUrl(context, result.url) }) { Icon(Icons.Outlined.Launch, null); Text("Open source") }
+                Button({ openUrl(context, result.url) }) { Icon(Icons.AutoMirrored.Outlined.Launch, null); Text("Open source") }
                 OutlinedButton({ copyUrl(context, result.url) }) { Icon(Icons.Outlined.ContentCopy, null); Text("Copy") }
             }
         }
@@ -364,9 +365,9 @@ fun SettingsScreen(state: SearchUiState, setPageDepth: (Int) -> Unit, setHistory
             }
             Text("Each direct public API retrieves up to ${state.settings.pageDepth * 20} records. Range: 1–5 pages.", style = MaterialTheme.typography.bodySmall)
         }
-        item { Divider(); SettingToggle("Save local search history", state.settings.historyEnabled, setHistory); Text("Off by default. Disabling it deletes saved history.", style = MaterialTheme.typography.bodySmall) }
+        item { HorizontalDivider(); SettingToggle("Save local search history", state.settings.historyEnabled, setHistory); Text("Off by default. Disabling it deletes saved history.", style = MaterialTheme.typography.bodySmall) }
         item { SettingToggle("Privacy mode", state.settings.privacyMode, setPrivacy); Text("Keeps local persistence minimal.", style = MaterialTheme.typography.bodySmall) }
-        item { DetailBlock("AI status", if (state.localAiAvailable) "Gemini Nano available on this device" else "Deterministic local fallback active") }
+        item { DetailBlock("Assistant status", "Deterministic on-device assistant active") }
         item { OutlinedButton(clearData) { Icon(Icons.Outlined.DeleteSweep, null); Text("Clear local data") }; state.message?.let { Text(it) } }
     }
 }
@@ -378,7 +379,7 @@ fun SummaryScreen(summary: AiSummary?, onBack: () -> Unit) {
         Text(summary?.headline ?: "No summary", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(summary?.summary.orEmpty())
         summary?.caveats?.forEach { Text("• $it", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        Text("Generated entirely on-device using the deterministic fallback unless Gemini Nano is explicitly available.", style = MaterialTheme.typography.bodySmall)
+        Text("Generated entirely on-device using deterministic local logic.", style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -417,7 +418,7 @@ private fun NoticeCard() {
 @Composable
 private fun BackHeader(title: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onBack) { Icon(Icons.Outlined.ArrowBack, "Back") }
+        IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back") }
         Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     }
 }

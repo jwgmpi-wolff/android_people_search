@@ -29,4 +29,4 @@ Reference reviewed read-only: `C:\Users\jerrywolff\Documents\.git\people_search_
 
 - A generated search link is a result target; the app does not claim that the person appears there until the user opens and verifies it.
 - Public-record coverage is discovered through official-domain searches because county/state portal structures vary and change.
-- Gemini Nano support remains optional; deterministic local behavior is the supported baseline.
+- Deterministic local behavior is the supported assistant implementation; no device-model or cloud dependency is required.

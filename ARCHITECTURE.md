@@ -10,8 +10,7 @@ flowchart LR
     VM --> Engine[PeopleSearchEngine]
     Engine --> Providers[Free URL providers]
     VM --> AI[AiAssistant]
-    AI --> Nano[Gemini Nano adapter]
-    AI --> Local[Local heuristic fallback]
+    AI --> Local[Local heuristic assistant]
     VM --> Store[Preferences DataStore]
     Providers --> Browser[Custom Tabs]
 ```
@@ -20,7 +19,7 @@ flowchart LR
 
 - `model`: immutable query, result, settings, confidence, and AI value objects.
 - `search`: provider contract, pure URL encoding, catalog, deduplication, and explainable scoring.
-- `ai`: device-AI abstraction, compile-safe Nano adapter, and deterministic fallback.
+- `ai`: deterministic on-device query refinement, result review, and match explanations.
 - `data`: settings plus opt-in search history. No database is created when history is disabled.
 - `ui`: Compose screens, navigation, state holder, source opening, and copy actions.
 

@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jerrywolff.androidpeoplesearch.ai.LocalHeuristicAssistant
-import com.jerrywolff.androidpeoplesearch.ai.MlKitGeminiNanoAssistant
 import com.jerrywolff.androidpeoplesearch.data.SettingsRepository
 import com.jerrywolff.androidpeoplesearch.model.AiSummary
 import com.jerrywolff.androidpeoplesearch.model.AppSettings
@@ -29,7 +28,6 @@ data class SearchUiState(
     val summary: AiSummary? = null,
     val settings: AppSettings = AppSettings(),
     val isSearching: Boolean = false,
-    val localAiAvailable: Boolean = false,
     val failedProviders: List<String> = emptyList(),
     val sourceCounts: List<SourceResultCount> = emptyList(),
     val countyOptions: List<String> = emptyList(),
@@ -44,14 +42,13 @@ data class SearchUiState(
 class PeopleSearchViewModel(application: Application) : AndroidViewModel(application) {
     private val engine = PeopleSearchEngine()
     private val countyCatalog = CountyCatalog()
-    private val assistant = MlKitGeminiNanoAssistant(LocalHeuristicAssistant())
+    private val assistant = LocalHeuristicAssistant()
     private val settingsRepository = SettingsRepository(application)
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
 
     init {
         viewModelScope.launch { settingsRepository.settings.collect { settings -> _state.update { it.copy(settings = settings) } } }
-        viewModelScope.launch { _state.update { it.copy(localAiAvailable = assistant.isAvailable()) } }
     }
 
     fun updateQuery(query: PeopleSearchQuery) = _state.update { it.copy(query = query, message = null) }
