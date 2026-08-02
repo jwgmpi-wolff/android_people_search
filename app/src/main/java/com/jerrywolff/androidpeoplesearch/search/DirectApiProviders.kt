@@ -65,18 +65,26 @@ class BingPublicReferencesProvider(
     },
     client = client,
 ) {
-    override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> = buildList {
-        val search = query.bingReferenceQuery(linkedInOnly)
-        if (search.isBlank()) return@buildList
-        repeat(pageDepth) { pageIndex ->
-            val first = pageIndex * 10 + 1
-            val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
-            val items = parseRssItems(client.get(url))
-            items.filterNot { it.url.isProhibitedReference() }.forEach { item ->
-                add(result(query, item.url.hashCode().toString(), item.title, cleanHtml(item.description), item.url))
+    override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> {
+        val refinedSearch = query.bingReferenceQuery(linkedInOnly)
+        if (refinedSearch.isBlank()) return emptyList()
+        val searches = listOf(
+            refinedSearch to pageDepth,
+            query.bingIdentityQuery(linkedInOnly) to 1,
+        ).distinctBy { it.first }
+        return buildList {
+            searches.forEach { (search, pages) ->
+                for (pageIndex in 0 until pages) {
+                    val first = pageIndex * 10 + 1
+                    val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
+                    val items = parseRssItems(client.get(url))
+                    items.filterNot { it.url.isProhibitedReference() }.forEach { item ->
+                        add(result(query, item.url.hashCode().toString(), item.title, cleanHtml(item.description), item.url))
+                    }
+                    if (items.size < 10) break
+                }
             }
-            if (items.size < 10) return@buildList
-        }
+        }.distinctBy { it.url }
     }
 }
 
@@ -109,6 +117,12 @@ private fun PeopleSearchQuery.bingReferenceQuery(linkedInOnly: Boolean): String 
     "site:linkedin.com/in".takeIf { linkedInOnly }.orEmpty(),
 ).filter(String::isNotBlank).joinToString(" ")
 
+private fun PeopleSearchQuery.bingIdentityQuery(linkedInOnly: Boolean): String = listOf(
+    personName().takeIf(String::isNotBlank)?.let { "\"$it\"" }.orEmpty(),
+    username,
+    "site:linkedin.com/in".takeIf { linkedInOnly }.orEmpty(),
+).filter(String::isNotBlank).joinToString(" ")
+
 private val PROHIBITED_REFERENCE_HOSTS = setOf(
     "fastpeoplesearch.com",
     "spokeo.com",
@@ -118,6 +132,7 @@ private val PROHIBITED_REFERENCE_HOSTS = setOf(
     "intelius.com",
     "contactout.com",
     "wiza.co",
+    "publicrecords.info",
 )
 
 private fun String.isProhibitedReference(): Boolean = runCatching {
@@ -127,42 +142,49 @@ private fun String.isProhibitedReference(): Boolean = runCatching {
 
 class CountyOfficialReferencesProvider(client: PublicApiClient = HttpPublicApiClient()) : DirectApiProvider(
     id = "county_official_references",
-    displayName = "Official county references",
+    displayName = "Official county public records",
     category = SourceCategory.PUBLIC_RECORDS,
     sourceUrl = { query ->
-        ProviderUrlBuilder.query("https://www.bing.com/search", "q", query.countyOfficialQuery())
+        ProviderUrlBuilder.query("https://www.bing.com/search", "q", query.countyOfficialQueries().firstOrNull().orEmpty())
     },
     client = client,
 ) {
-    override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> = buildList {
-        val search = query.countyOfficialQuery()
-        if (search.isBlank()) return@buildList
-        repeat(pageDepth) { pageIndex ->
-            val first = pageIndex * 10 + 1
-            val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
-            val items = parseRssItems(client.get(url))
-            items.filter { it.url.isOfficialGovernmentReference() }.forEach { item ->
-                add(
-                    result(
-                        query,
-                        item.url.hashCode().toString(),
-                        item.title,
-                        listOf(cleanHtml(item.description), query.countyLabel(), query.state)
-                            .filter(String::isNotBlank)
-                            .joinToString(" · "),
-                        item.url,
-                    ),
-                )
+    override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> {
+        val searches = query.countyOfficialQueries()
+        if (searches.isEmpty()) return emptyList()
+        return buildList {
+            searches.forEachIndexed { searchIndex, search ->
+                val pages = if (searchIndex == 0) pageDepth else 1
+                for (pageIndex in 0 until pages) {
+                    val first = pageIndex * 10 + 1
+                    val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
+                    val items = parseRssItems(client.get(url))
+                    items.filter { it.url.isOfficialGovernmentReference() }.forEach { item ->
+                        add(
+                            result(
+                                query,
+                                item.url.hashCode().toString(),
+                                item.title,
+                                cleanHtml(item.description),
+                                item.url,
+                            ),
+                        )
+                    }
+                    if (items.size < 10) break
+                }
             }
-            if (items.size < 10) return@buildList
-        }
+        }.distinctBy { it.url }
     }
 }
 
-private fun PeopleSearchQuery.countyOfficialQuery(): String {
+private fun PeopleSearchQuery.countyOfficialQueries(): List<String> {
     val name = personName()
-    if (name.isBlank() || county.isBlank() || state.isBlank()) return ""
-    return "\"$name\" \"${countyLabel()}\" \"$state\" county employee staff directory"
+    if (name.isBlank() || county.isBlank() || state.isBlank()) return emptyList()
+    val location = "\"$name\" \"${countyLabel()}\" \"$state\""
+    return listOf(
+        "$location site:.gov",
+        "$location (record OR agenda OR minutes OR notice OR board OR commission OR court OR docket OR permit OR license OR election OR contract) site:.gov",
+    )
 }
 
 private fun PeopleSearchQuery.countyLabel(): String {
@@ -171,8 +193,9 @@ private fun PeopleSearchQuery.countyLabel(): String {
 }
 
 private fun String.isOfficialGovernmentReference(): Boolean = runCatching {
-    val host = URI(this).host.orEmpty().lowercase(Locale.ROOT).removeSuffix(".")
-    host.endsWith(".gov") || host == "gov"
+    val uri = URI(this)
+    val host = uri.host.orEmpty().lowercase(Locale.ROOT).removeSuffix(".")
+    uri.scheme.equals("https", ignoreCase = true) && (host.endsWith(".gov") || host == "gov")
 }.getOrDefault(false)
 
 class KingCountyEmployeesProvider(client: PublicApiClient = HttpPublicApiClient()) : DirectApiProvider(

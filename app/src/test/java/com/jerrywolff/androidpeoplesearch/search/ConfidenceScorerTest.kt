@@ -34,4 +34,17 @@ class ConfidenceScorerTest {
 
         assertTrue(score.signals.containsAll(listOf("Name", "County", "Country")))
     }
+
+    @Test
+    fun compactProfileUrlProvidesObservedNameAndStateSignals() {
+        val query = PeopleSearchQuery(fullName = "Alexis Wolff", state = "Washington")
+
+        val score = ConfidenceScorer.score(
+            query,
+            SourceCategory.PROFESSIONAL,
+            "alexiswolff92 https://example.com/alexiswolff92 Seattle WA",
+        )
+
+        assertTrue(score.signals.containsAll(listOf("Name", "State")))
+    }
 }

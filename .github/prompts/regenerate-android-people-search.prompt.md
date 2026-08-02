@@ -17,7 +17,7 @@ Create a privacy-conscious public-source people research app that:
 
 - Runs every compliant provider automatically for each search.
 - Retrieves and displays actual public records or public profile references, not browser search forms.
-- Displays every compliant record returned by each provider; do not apply a second hard identity filter after retrieval.
+- Displays candidates with source-observed identity evidence. Populated fields refine provider queries and confidence ranking, while exact-name records remain visible when snippets omit those details; never copy submitted values into result text to manufacture a match.
 - Deduplicates records by canonical result URL within each provider and across providers.
 - Shows a final post-deduplication count for every provider, including `0 found`.
 - Distinguishes provider failures as `Rate limited`, `Timed out`, `Source unavailable`, or `Unavailable`.
@@ -51,6 +51,7 @@ Block references from these hosts and their subdomains:
 - `intelius.com`
 - `contactout.com`
 - `wiza.co`
+- `publicrecords.info`
 
 LinkedIn support must use public Bing RSS references constrained to `site:linkedin.com/in`; it must not require LinkedIn sign-in, cookies, scraping, or a LinkedIn API token.
 
@@ -291,14 +292,17 @@ Create `DirectApiProvider` that:
 - Return publicly indexed references without LinkedIn authentication.
 - Apply the same prohibited-host and XML protections.
 
-### Official county references
+### Official county public records
 
-- ID `county_official_references`; display name `Official county references`; category `PUBLIC_RECORDS`.
+- ID `county_official_references`; display name `Official county public records`; category `PUBLIC_RECORDS`.
 - Run only when person name, county, and state are nonblank.
-- Query quoted name, official county label, state, and `county employee staff directory`.
+- Run a broad exact-name query containing the official county label, state, and `site:.gov` for the configured page depth.
+- Run one additional query for the same identity/location with `(record OR agenda OR minutes OR notice OR board OR commission OR court OR docket OR permit OR license OR election OR contract) site:.gov`.
 - Preserve county-equivalent suffixes: County, Parish, Borough, Census Area, Municipality; append `County` only when no suffix exists.
-- Use Bing RSS pagination.
+- Deduplicate records returned by the two query passes by URL.
 - Retain only HTTPS results whose host is exactly `gov` or ends in `.gov`.
+- Do not limit generic county retrieval to employee or staff directories.
+- Exclude commercial report generators such as `publicrecords.info`, property-owner discovery, and private-address records.
 
 ### King County employee directory
 
@@ -400,11 +404,14 @@ Behavior:
 4. Map HTTP 500 through 599 to `Source unavailable`.
 5. Map `SocketTimeoutException` to `Timed out`.
 6. Map other exceptions to `Unavailable`.
-7. Deduplicate each provider result list by URL.
-8. Report source counts from the exact visible per-provider lists.
-9. Merge and deduplicate globally by URL.
-10. Sort direct results first, then confidence descending, then source name.
-11. Display every compliant returned record, including low-confidence leads.
+7. Require every requested name token or the compact full name in source title, description, or URL. If no name was supplied, require the supplied username.
+8. Use populated company, city, county, state, domain, country, username, and free-text fields to refine provider requests and add confidence only when source-observed. Do not reject an exact-name record merely because an index snippet omits a populated refinement.
+9. For Bing public web and LinkedIn references, run the populated-field query for the configured page depth plus one exact-identity fallback page, then deduplicate URLs.
+10. Never inject submitted fields into result descriptions or confidence evidence.
+11. Deduplicate each provider result list by URL and report counts from the exact visible per-provider lists.
+12. Merge and deduplicate globally by URL.
+13. Sort direct results first, then confidence descending, then source name.
+14. Keep identity-matching low-confidence leads visible; reject candidates that fail identity evidence.
 
 ## Confidence scoring
 
@@ -560,7 +567,7 @@ Provenance labels:
 
 - `bing_linkedin`: `Public LinkedIn reference`
 - `bing_web`: `Public web index`
-- `county_official_references`: `Official government index`
+- `county_official_references`: `Official county public record`
 - `king_county_employees`: `Official county directory`
 - Others: `Direct API`
 
@@ -611,7 +618,8 @@ Create unit tests covering at least:
 - Paid/auth providers are skipped.
 - One provider failure does not discard successful records.
 - HTTP 429 becomes `Rate limited`.
-- Every record returned by a compliant provider remains visible.
+- Unrelated identities are rejected while exact-name rows remain visible when snippets omit refinements.
+- Populated refinements affect provider queries and confidence only when observed, with state-name/postal-code equivalence.
 - Per-source counts match visible deduplicated records.
 - Compact username/profile URL leads remain visible.
 
@@ -690,7 +698,7 @@ Do not finish until all are true:
 3. No secret, key, cookie, credential, generated build directory, or signing file is committed.
 4. Every provider has URL/parser/pagination tests appropriate to its behavior.
 5. `docs/source_matrix.md` exactly matches `ProviderCatalog`.
-6. Every returned compliant record reaches the visible result list after URL deduplication.
+6. Only candidates matching source-observed identity reach the visible result list after URL deduplication; populated refinements improve retrieval and ranking without suppressing exact-name records.
 7. History is disabled by default and clear-local-data works.
 8. Cleartext traffic is disabled and INTERNET is the only permission.
 9. `testDebugUnitTest` passes.

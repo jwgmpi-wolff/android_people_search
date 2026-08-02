@@ -69,6 +69,7 @@ class DirectApiProviderTest {
             requestedUrls += url
             """<?xml version="1.0"?><rss><channel>
                 <item><title>Alexis Wolff - County Program Manager</title><link>https://directory.examplecounty.gov/staff/alexis-wolff</link><description>Official staff directory</description></item>
+                <item><title>Alexis Wolff insecure record</title><link>http://records.examplecounty.gov/alexis-wolff</link><description>Insecure government page</description></item>
                 <item><title>Alexis Wolff profile</title><link>https://peoplefinder.example.com/alexis</link><description>Unofficial profile</description></item>
             </channel></rss>"""
         }
@@ -78,11 +79,14 @@ class DirectApiProviderTest {
             pageDepth = 1,
         ).single()
 
-        assertTrue(requestedUrls.single().contains("%22Example%20County%22"))
-        assertTrue(requestedUrls.single().contains("%22Oregon%22"))
+        assertEquals(2, requestedUrls.size)
+        assertTrue(requestedUrls.all { it.contains("%22Example%20County%22") })
+        assertTrue(requestedUrls.all { it.contains("%22Oregon%22") })
+        assertTrue(requestedUrls.all { it.contains("site%3A.gov") })
+        assertTrue(requestedUrls.first().contains("agenda").not())
+        assertTrue(requestedUrls.last().contains("agenda"))
         assertEquals("https://directory.examplecounty.gov/staff/alexis-wolff", result.url)
-        assertTrue(result.description.contains("Example County"))
-        assertTrue(result.description.contains("Oregon"))
+        assertEquals("Official staff directory", result.description)
     }
 
     @Test
@@ -114,8 +118,9 @@ class DirectApiProviderTest {
             pageDepth = 1,
         )
 
-        assertTrue(requestedUrls.single().contains("%22Orleans%20Parish%22"))
-        assertTrue(requestedUrls.single().contains("Orleans%20Parish%20County").not())
+        assertEquals(2, requestedUrls.size)
+        assertTrue(requestedUrls.all { it.contains("%22Orleans%20Parish%22") })
+        assertTrue(requestedUrls.none { it.contains("Orleans%20Parish%20County") })
     }
 
     @Test
@@ -126,6 +131,7 @@ class DirectApiProviderTest {
             """<?xml version="1.0"?><rss><channel>
                 <item><title>Alexis Wolff - Technical Director</title><link>https://www.linkedin.com/in/alexis-wolff</link><description>Seattle, Washington</description></item>
                 <item><title>Alexis Wolff contact details</title><link>https://contactout.com/Alexis-Wolff</link><description>Paid enrichment profile</description></item>
+                <item><title>33 public records for Alexis Wolff</title><link>https://www.publicrecords.info/people/found</link><description>Email report generator</description></item>
             </channel></rss>"""
         }
 
@@ -134,9 +140,11 @@ class DirectApiProviderTest {
             pageDepth = 1,
         )
 
-        assertTrue(requestedUrls.single().contains("%22Alexis%20Wolff%22"))
-        assertTrue(requestedUrls.single().contains("King%20County"))
-        assertTrue(requestedUrls.single().contains("site%3Alinkedin.com%2Fin"))
+        assertEquals(2, requestedUrls.size)
+        assertTrue(requestedUrls.first().contains("%22Alexis%20Wolff%22"))
+        assertTrue(requestedUrls.first().contains("King%20County"))
+        assertTrue(requestedUrls.all { it.contains("site%3Alinkedin.com%2Fin") })
+        assertTrue(requestedUrls.last().contains("King%20County").not())
         assertEquals(1, results.size)
         assertEquals("https://www.linkedin.com/in/alexis-wolff", results.single().url)
         assertEquals(SourceCategory.PUBLIC_RECORDS, results.single().category)
@@ -160,10 +168,39 @@ class DirectApiProviderTest {
             pageDepth = 2,
         )
 
-        assertEquals(2, requestedUrls.size)
+        assertEquals(3, requestedUrls.size)
         assertTrue(requestedUrls[1].contains("first=11"))
-        assertEquals(20, results.size)
+        assertTrue(requestedUrls.last().contains("Seattle").not())
+        assertEquals(30, results.size)
         assertTrue(results.all { it.category == SourceCategory.PUBLIC_RECORDS })
+    }
+
+    @Test
+    fun bingLinkedInFallsBackToExactNameWhenRefinedQueryHasNoRecords() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val provider = BingPublicReferencesProvider(
+            linkedInOnly = true,
+            client = PublicApiClient { url ->
+                requestedUrls += url
+                if (url.contains("Microsoft")) {
+                    "<?xml version=\"1.0\"?><rss><channel/></rss>"
+                } else {
+                    """<?xml version="1.0"?><rss><channel>
+                        <item><title>Alexis Wolff - U.S. Diplomat | LinkedIn</title><link>https://www.linkedin.com/in/alexiswolff</link><description>Public LinkedIn profile</description></item>
+                    </channel></rss>"""
+                }
+            },
+        )
+
+        val results = provider.search(
+            PeopleSearchQuery(fullName = "Alexis Wolff", company = "Microsoft"),
+            pageDepth = 3,
+        )
+
+        assertEquals(2, requestedUrls.size)
+        assertTrue(requestedUrls.first().contains("Microsoft"))
+        assertTrue(requestedUrls.last().contains("Microsoft").not())
+        assertEquals("https://www.linkedin.com/in/alexiswolff", results.single().url)
     }
 
     @Test

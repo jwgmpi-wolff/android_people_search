@@ -18,7 +18,7 @@ flowchart LR
 ## Boundaries
 
 - `model`: immutable query, result, settings, confidence, and AI value objects.
-- `search`: provider contract, pure URL encoding, catalog, deduplication, and explainable scoring.
+- `search`: provider contract, pure URL encoding, catalog, source-observed identity filtering, refinement-aware retrieval/ranking, deduplication, and explainable scoring.
 - `ai`: deterministic on-device query refinement, result review, and match explanations.
 - `data`: settings plus opt-in search history. No database is created when history is disabled.
 - `ui`: Compose screens, navigation, state holder, source opening, and copy actions.

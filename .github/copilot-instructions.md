@@ -9,3 +9,4 @@
 - Update `docs/source_matrix.md` whenever a provider is added, removed, or changed.
 - Keep history disabled by default and preserve the clear-local-data behavior.
 - Treat confidence as an explainable lead score, never proof of identity.
+- Require source-observed identity evidence. Use populated fields in provider queries and confidence ranking, but retain exact-name records when snippets omit refinements; never inject submitted fields into result text or confidence evidence.

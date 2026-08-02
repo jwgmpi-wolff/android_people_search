@@ -82,14 +82,71 @@ class PeopleSearchEngineTest {
     }
 
     @Test
-    fun searchShowsEveryRecordReturnedByACompliantProvider() = runBlocking {
+    fun searchRejectsRecordWithoutRequestedIdentityEvidence() = runBlocking {
         val calls = AtomicInteger()
         val provider = fakeProvider("web", SourceCategory.WEB, calls, resultTitle = "Gayle Rankin", direct = true)
 
         val report = PeopleSearchEngine(listOf(provider)).searchWithDiagnostics(PeopleSearchQuery(fullName = "Alexis Wolff"))
 
-        assertEquals(listOf("Gayle Rankin"), report.results.map { it.title })
-        assertEquals(listOf(SourceResultCount("web", 1, false)), report.sourceCounts)
+        assertTrue(report.results.isEmpty())
+        assertEquals(listOf(SourceResultCount("web", 0, false)), report.sourceCounts)
+    }
+
+    @Test
+    fun exactNameRecordsRemainVisibleWhenIndexSnippetOmitsRefinements() = runBlocking {
+        val calls = AtomicInteger()
+        val providers = listOf(
+            fakeProvider(
+                "matching",
+                SourceCategory.PROFESSIONAL,
+                calls,
+                resultTitle = "Alexis Wolff",
+                resultDescription = "Engineer in Seattle, Washington",
+            ),
+            fakeProvider(
+                "unrefined",
+                SourceCategory.PROFESSIONAL,
+                calls,
+                resultTitle = "Alexis Wolff",
+                resultDescription = "Author profile in Berlin",
+            ),
+        )
+
+        val report = PeopleSearchEngine(providers).searchWithDiagnostics(
+            PeopleSearchQuery(fullName = "Alexis Wolff", city = "Seattle", state = "Washington"),
+        )
+
+        assertEquals(setOf("matching", "unrefined"), report.results.map { it.providerId }.toSet())
+        assertEquals(
+            listOf(SourceResultCount("matching", 1, false), SourceResultCount("unrefined", 1, false)),
+            report.sourceCounts,
+        )
+    }
+
+    @Test
+    fun screenshotShapedLinkedInDirectoryResultMatchesRequestedIdentity() = runBlocking {
+        val calls = AtomicInteger()
+        val provider = fakeProvider(
+            "bing_linkedin",
+            SourceCategory.PUBLIC_RECORDS,
+            calls,
+            resultTitle = "30+ \"Alexis Wolff\" profiles | LinkedIn",
+            resultDescription = "Public people directory results",
+            resultUrl = "https://www.linkedin.com/pub/dir?firstName=alexis&lastName=wolff",
+        )
+
+        val report = PeopleSearchEngine(listOf(provider)).searchWithDiagnostics(
+            PeopleSearchQuery(
+                fullName = "Alexis Wolff",
+                city = "Seattle",
+                state = "Washington",
+                country = "United States",
+                company = "Microsoft",
+            ),
+        )
+
+        assertEquals(listOf("bing_linkedin"), report.results.map { it.providerId })
+        assertEquals(1, report.sourceCounts.single().recordCount)
     }
 
     @Test
@@ -117,7 +174,8 @@ class PeopleSearchEngineTest {
         calls: AtomicInteger,
         requiresPayment: Boolean = false,
         requiresAuth: Boolean = false,
-        resultTitle: String = providerId,
+        resultTitle: String = "Ada Lovelace",
+        resultDescription: String = "Result from $providerId",
         resultUrl: String = "https://example.com/$providerId",
         direct: Boolean = false,
     ) = object : SearchProvider {
@@ -135,7 +193,7 @@ class PeopleSearchEngineTest {
                     id = providerId,
                     providerId = providerId,
                     title = resultTitle,
-                    description = "Result from $providerId",
+                    description = resultDescription,
                     url = resultUrl,
                     sourceName = providerId,
                     category = sourceCategory,

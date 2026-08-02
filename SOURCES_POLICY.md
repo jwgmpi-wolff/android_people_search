@@ -14,7 +14,7 @@ Government, court, property, licensing, business-registration, campaign-finance,
 
 ## Prohibited sources and workflows
 
-BeenVerified, Spokeo, PeopleFinders, Intelius, TruthFinder, LexisNexis, TLO, CLEAR, Accurint, Delvepoint, IDI, paid legal systems, credit/medical/education/financial records, utility data, SSNs, driver records, restricted criminal history, license-plate lookups, breach/password data, dark-web sources, and any pay-to-unlock result are prohibited.
+BeenVerified, Spokeo, PeopleFinders, Intelius, TruthFinder, PublicRecords.info, LexisNexis, TLO, CLEAR, Accurint, Delvepoint, IDI, paid legal systems, commercial report generators, credit/medical/education/financial records, utility data, SSNs, driver records, restricted criminal history, license-plate lookups, breach/password data, dark-web sources, and any pay-to-unlock result are prohibited.
 
 No provider may automate private-address discovery, deanonymization, authentication, scraping, bulk export, or CAPTCHA/paywall bypass.
 

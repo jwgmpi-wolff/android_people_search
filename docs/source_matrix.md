@@ -1,19 +1,19 @@
 # Public source matrix
 
-All active providers have `Paid = No` and `Auth = No`. Paginated direct API providers retrieve the user-configured 1–5 pages of 20 records and stop on a short page. Counts are calculated after retrieval and per-source deduplication; every compliant returned record is displayed with an explainable confidence score. Browser links and search forms do not participate in results. Last reviewed: 2026-08-01.
+All active providers have `Paid = No` and `Auth = No`. Paginated direct API providers retrieve the user-configured pages and stop on a short page. Counts are calculated after source-observed identity filtering and per-source deduplication. Populated details refine requests and confidence ranking but do not hide exact-name records when snippets omit those details. Submitted fields are never injected into result evidence. Browser links and search forms do not participate in results. Last reviewed: 2026-08-01.
 
 County choices load from the official, keyless Census TIGERweb State/County layer after a U.S. state is selected. Manual county entry remains available when that catalog cannot be reached.
 
 | Source | Category | Auth | Paid results excluded | Retrieval | Search URL pattern |
 |---|---|---:|---:|---|---|
 | Google | Public web | No | Yes | Browser link | `google.com/search?q={query}` |
-| Bing public web references | Publicly accessible records | No | Yes | Direct RSS retrieval, configured 1–5 pages | `bing.com/search?q={query}&format=rss&first={offset}` |
-| LinkedIn public references | Publicly accessible records | No | Yes | Bing-indexed public profile references, configured 1–5 pages | Bing RSS `site:linkedin.com/in` |
+| Bing public web references | Publicly accessible records | No | Yes | Refined RSS retrieval plus one exact-identity fallback page; URL deduplication | `bing.com/search?q={query}&format=rss&first={offset}` |
+| LinkedIn public references | Publicly accessible records | No | Yes | Bing-indexed refined retrieval plus one exact-name `site:linkedin.com/in` fallback page | Bing RSS `site:linkedin.com/in` |
 | DuckDuckGo | Public web | No | Yes | Browser link | `duckduckgo.com/?q={query}` |
 | Wikipedia | Public web | No | No | Inactive: snippet search produced unrelated identity results | Removed 2026-08-01 |
 | Wikidata | Open knowledge graph | No | No | Inactive: entity search was too broad for people matching | Removed 2026-08-01 |
 | NPI Registry | US federal public records | No | Yes | Direct API, configured 1–5 pages | `npiregistry.cms.hhs.gov/api/?version=2.1&skip={offset}` |
-| Official county references | County employee/public official records | No | Yes | State-and-county-aware Bing RSS retrieval; HTTPS `.gov` results only | Bing RSS with exact name, selected county, and selected state |
+| Official county public records | County public records | No | Yes | Two-pass state-and-county-aware Bing RSS retrieval: broad exact-name official pages plus records/agendas/minutes/notices/boards/commissions/courts/dockets/permits/licenses/elections/contracts; HTTPS `.gov` results only; URL deduplication | Bing RSS with exact name, selected county, selected state, and `site:.gov` |
 | King County employee directory | County employee/public official records | No | Yes | Direct exact-name form retrieval; public work name, group, and title only | `directory.kingcounty.gov/EmployeeList.asp?txtfname={first}&txtlname={last}` |
 | Semantic Scholar | Scholarly profiles | No | Yes | Direct author API, configured 1–5 pages | `api.semanticscholar.org/graph/v1/author/search?offset={offset}` |
 | Open Library | Published-author profiles | No | Yes | Direct author API, configured 1–5 pages | `openlibrary.org/search/authors.json?offset={offset}` |
@@ -32,7 +32,7 @@ County choices load from the official, keyless Census TIGERweb State/County laye
 | USAspending.gov | Federal/contracts | No | Yes | Browser link | `usaspending.gov/search/?hash={query}` |
 | USPTO public records | Federal/IP | No | Yes | Browser link | Google `site:uspto.gov {query}` |
 | State official records | State/licenses/business/courts | No | Yes | Browser link | Google `site:.gov (license OR corporation OR court) {query}` |
-| County-specific directory adapters | County employee/public official records | No | Yes | King County active; other stable anonymous official directories can be added while generic official references cover selected counties | Exact-name official directory forms only |
+| County-specific directory adapters | County employee/public official records | No | Yes | King County is an additional direct adapter; generic official public-record retrieval covers every Census-selected county/county equivalent | Exact-name official directory forms only |
 | County property/assessor records | County property records | No | Yes | Excluded: the app does not discover private addresses or property owners | Not queried |
 | GitHub username | Username | No | Yes | Browser link | `github.com/{username}` |
 | Company website | Domain | No | Yes | Browser link | Google `site:{domain} {query}` |

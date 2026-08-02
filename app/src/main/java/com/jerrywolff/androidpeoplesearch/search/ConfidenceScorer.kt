@@ -11,14 +11,18 @@ object ConfidenceScorer {
         val normalized = query.normalized()
         val haystack = searchableText.lowercase()
         val signals = buildList {
-            normalized.personName().takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Name") }
-            normalized.company.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Company") }
-            normalized.city.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("City") }
-            normalized.county.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("County") }
-            normalized.state.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("State") }
-            normalized.country.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Country") }
-            normalized.username.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Username") }
-            normalized.emailDomain.takeIf { it.isNotBlank() && haystack.contains(it.lowercase()) }?.let { add("Domain") }
+            normalized.personName().takeIf { it.matchesObservedText(haystack) }?.let { add("Name") }
+            normalized.company.takeIf { it.matchesObservedText(haystack) }?.let { add("Company") }
+            normalized.city.takeIf { it.matchesObservedText(haystack) }?.let { add("City") }
+            normalized.county.takeIf { it.matchesObservedText(haystack) }?.let { add("County") }
+            normalized.state.takeIf {
+                it.matchesObservedText(haystack) ||
+                    it.usStateAbbreviation()?.matchesObservedText(haystack) == true
+            }?.let { add("State") }
+            normalized.country.takeIf { it.matchesObservedText(haystack) }?.let { add("Country") }
+            normalized.username.takeIf { it.matchesObservedText(haystack) }?.let { add("Username") }
+            normalized.emailDomain.takeIf { it.matchesObservedText(haystack) }?.let { add("Domain") }
+            normalized.freeText.takeIf { it.matchesObservedText(haystack) }?.let { add("Context") }
         }
         val sourceWeight = when (category) {
             SourceCategory.PUBLIC_RECORDS -> 35
@@ -34,4 +38,17 @@ object ConfidenceScorer {
         }
         return ConfidenceScore(score, level, signals)
     }
+}
+
+private fun String.matchesObservedText(haystack: String): Boolean {
+    if (isBlank()) return false
+    val expectedTokens = lowercase().split(Regex("[^a-z0-9]+"))
+        .filter { it.length > 1 }
+    if (expectedTokens.isEmpty()) return false
+    val observedTokens = haystack.split(Regex("[^a-z0-9]+"))
+        .filter { it.length > 1 }
+        .toSet()
+    val observedCompact = haystack.filter(Char::isLetterOrDigit)
+    return expectedTokens.all(observedTokens::contains) ||
+        observedCompact.contains(expectedTokens.joinToString(""))
 }

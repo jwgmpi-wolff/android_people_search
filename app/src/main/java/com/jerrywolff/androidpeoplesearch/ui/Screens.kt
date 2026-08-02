@@ -247,6 +247,7 @@ fun ResultsScreen(state: SearchUiState, onBack: () -> Unit, onSelect: (PersonSea
         item { BackHeader("Results", onBack); NoticeCard() }
         if (state.sourceCounts.isNotEmpty()) {
             item { Text("Records found by source", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+            item { Text("Counts include records matching the entered identity. Populated details refine the search and raise stronger observed matches.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             items(state.sourceCounts, key = { it.providerName }) { source ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(source.providerName, Modifier.weight(1f))
@@ -300,7 +301,7 @@ private fun ResultCard(result: PersonSearchResult, onSelect: (PersonSearchResult
                     when {
                         result.providerId == "bing_linkedin" -> "Public LinkedIn reference"
                         result.providerId == "bing_web" -> "Public web index"
-                        result.providerId == "county_official_references" -> "Official government index"
+                        result.providerId == "county_official_references" -> "Official county public record"
                         result.providerId == "king_county_employees" -> "Official county directory"
                         else -> "Direct API"
                     },

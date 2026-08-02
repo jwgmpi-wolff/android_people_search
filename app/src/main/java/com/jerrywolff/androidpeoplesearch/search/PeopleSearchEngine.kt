@@ -45,7 +45,11 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
             }
             .awaitAll()
         val deduplicatedOutcomes = outcomes.map { outcome ->
-            outcome.copy(results = outcome.results.distinctBy { it.url })
+            outcome.copy(
+                results = outcome.results
+                    .filter { it.matchesRequestedIdentity(query) }
+                    .distinctBy { it.url },
+            )
         }
         SearchReport(
             results = deduplicatedOutcomes.flatMap { it.results }
@@ -79,4 +83,39 @@ private fun Throwable.userFacingReason(): String = when {
     this is PublicApiHttpException && statusCode in 500..599 -> "Source unavailable"
     this is SocketTimeoutException -> "Timed out"
     else -> "Unavailable"
+}
+
+private fun PersonSearchResult.matchesRequestedIdentity(query: PeopleSearchQuery): Boolean {
+    val normalized = query.normalized()
+    val searchableText = "$title $description $url".lowercase()
+    val searchableTokens = searchableText.fieldTokens()
+    val searchableCompact = searchableText.filter(Char::isLetterOrDigit)
+
+    val nameTokens = normalized.personName().fieldTokens()
+    if (nameTokens.isNotEmpty()) {
+        return nameTokens.all(searchableTokens::contains) ||
+            searchableCompact.contains(nameTokens.joinToString(""))
+    }
+    val username = normalized.username.filter(Char::isLetterOrDigit)
+    return username.isBlank() || searchableCompact.contains(username)
+}
+
+private fun String.fieldTokens(): Set<String> =
+    lowercase().split(Regex("[^a-z0-9]+"))
+        .filter { it.length > 1 }
+        .toSet()
+
+internal fun String.usStateAbbreviation(): String? = US_STATE_ABBREVIATIONS[lowercase()]
+
+private val US_STATE_ABBREVIATIONS = """
+    Alabama=AL|Alaska=AK|Arizona=AZ|Arkansas=AR|California=CA|Colorado=CO|Connecticut=CT|Delaware=DE|
+    District of Columbia=DC|Florida=FL|Georgia=GA|Hawaii=HI|Idaho=ID|Illinois=IL|Indiana=IN|Iowa=IA|
+    Kansas=KS|Kentucky=KY|Louisiana=LA|Maine=ME|Maryland=MD|Massachusetts=MA|Michigan=MI|Minnesota=MN|
+    Mississippi=MS|Missouri=MO|Montana=MT|Nebraska=NE|Nevada=NV|New Hampshire=NH|New Jersey=NJ|
+    New Mexico=NM|New York=NY|North Carolina=NC|North Dakota=ND|Ohio=OH|Oklahoma=OK|Oregon=OR|
+    Pennsylvania=PA|Rhode Island=RI|South Carolina=SC|South Dakota=SD|Tennessee=TN|Texas=TX|Utah=UT|
+    Vermont=VT|Virginia=VA|Washington=WA|West Virginia=WV|Wisconsin=WI|Wyoming=WY
+""".trimIndent().replace("\n", "").split('|').associate { entry ->
+    val (name, abbreviation) = entry.split('=', limit = 2)
+    name.lowercase() to abbreviation
 }
