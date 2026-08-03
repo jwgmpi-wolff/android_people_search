@@ -30,8 +30,11 @@ data class SearchUiState(
     val isSearching: Boolean = false,
     val failedProviders: List<String> = emptyList(),
     val sourceCounts: List<SourceResultCount> = emptyList(),
+    val cityOptions: List<String> = emptyList(),
     val countyOptions: List<String> = emptyList(),
+    val isLoadingCities: Boolean = false,
     val isLoadingCounties: Boolean = false,
+    val cityLoadFailed: Boolean = false,
     val countyLoadFailed: Boolean = false,
     val searchChat: List<SearchChatMessage> = listOf(
         SearchChatMessage(true, "Add details about the person, location, employer, domain, or username."),
@@ -59,9 +62,11 @@ class PeopleSearchViewModel(application: Application) : AndroidViewModel(applica
             it.copy(
                 query = it.query.copy(
                     state = state,
+                    city = "",
                     county = "",
                     country = if (state.isNotBlank()) "United States" else it.query.country,
                 ),
+                cityOptions = emptyList(),
                 countyOptions = emptyList(),
                 message = null,
             )
@@ -72,21 +77,28 @@ class PeopleSearchViewModel(application: Application) : AndroidViewModel(applica
     private fun loadCountyOptions(state: String) {
         _state.update {
             it.copy(
+                cityOptions = emptyList(),
                 countyOptions = emptyList(),
+                isLoadingCities = state.isNotBlank(),
                 isLoadingCounties = state.isNotBlank(),
+                cityLoadFailed = false,
                 countyLoadFailed = false,
             )
         }
         if (state.isBlank()) return
         viewModelScope.launch {
+            val cities = runCatching { countyCatalog.citiesForState(state) }
             val counties = runCatching { countyCatalog.countiesForState(state) }
             _state.update { current ->
                 if (current.query.state != state) {
                     current
                 } else {
                     current.copy(
+                        cityOptions = cities.getOrDefault(emptyList()),
                         countyOptions = counties.getOrDefault(emptyList()),
+                        isLoadingCities = false,
                         isLoadingCounties = false,
+                        cityLoadFailed = cities.isFailure,
                         countyLoadFailed = counties.isFailure,
                     )
                 }
@@ -100,8 +112,11 @@ class PeopleSearchViewModel(application: Application) : AndroidViewModel(applica
             summary = null,
             failedProviders = emptyList(),
             sourceCounts = emptyList(),
+            cityOptions = emptyList(),
             countyOptions = emptyList(),
+            isLoadingCities = false,
             isLoadingCounties = false,
+            cityLoadFailed = false,
             countyLoadFailed = false,
             searchChat = listOf(SearchChatMessage(true, "Add details about the person, location, employer, domain, or username.")),
         )

@@ -87,14 +87,22 @@ fun HomeScreen(state: SearchUiState, update: (PeopleSearchQuery) -> Unit, select
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FormField("City", query.city, Modifier.weight(1f)) { update(query.copy(city = it)) }
+                LocationDropdown(
+                    label = "City",
+                    value = query.city,
+                    options = state.cityOptions,
+                    isLoading = state.isLoadingCities,
+                    loadFailed = state.cityLoadFailed,
+                    modifier = Modifier.weight(1f),
+                ) { update(query.copy(city = it)) }
                 StateDropdown(query.state, Modifier.weight(1f), selectState)
             }
         }
         item {
-            CountyDropdown(
+            LocationDropdown(
+                label = "County",
                 value = query.county,
-                counties = state.countyOptions,
+                options = state.countyOptions,
                 isLoading = state.isLoadingCounties,
                 loadFailed = state.countyLoadFailed,
             ) { update(query.copy(county = it)) }
@@ -215,38 +223,40 @@ private fun StateDropdown(value: String, modifier: Modifier = Modifier.fillMaxWi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CountyDropdown(
+private fun LocationDropdown(
+    label: String,
     value: String,
-    counties: List<String>,
+    options: List<String>,
     isLoading: Boolean,
     loadFailed: Boolean,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     update: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         ExposedDropdownMenuBox(
-            expanded = expanded && counties.isNotEmpty(),
-            onExpandedChange = { if (counties.isNotEmpty()) expanded = it },
+            expanded = expanded && options.isNotEmpty(),
+            onExpandedChange = { if (options.isNotEmpty()) expanded = it },
         ) {
             OutlinedTextField(
                 value = value,
                 onValueChange = update,
                 modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth(),
-                label = { Text(if (isLoading) "Loading counties..." else "County") },
+                label = { Text(if (isLoading) "Loading ${label.lowercase()} list..." else label) },
                 singleLine = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded && counties.isNotEmpty()) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded && options.isNotEmpty()) },
             )
             ExposedDropdownMenu(
-                expanded = expanded && counties.isNotEmpty(),
+                expanded = expanded && options.isNotEmpty(),
                 onDismissRequest = { expanded = false },
             ) {
-                counties.forEach { county ->
-                    DropdownMenuItem(text = { Text(county) }, onClick = { update(county); expanded = false })
+                options.forEach { option ->
+                    DropdownMenuItem(text = { Text(option) }, onClick = { update(option); expanded = false })
                 }
             }
         }
         if (loadFailed) {
-            Text("County list unavailable. Enter the county manually.", style = MaterialTheme.typography.bodySmall)
+            Text("$label list unavailable. Enter it manually.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

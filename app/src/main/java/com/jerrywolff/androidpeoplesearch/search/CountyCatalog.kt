@@ -3,13 +3,24 @@ package com.jerrywolff.androidpeoplesearch.search
 import org.json.JSONObject
 
 class CountyCatalog(private val client: PublicApiClient = HttpPublicApiClient()) {
+    suspend fun citiesForState(state: String): List<String> {
+        val stateCode = US_STATE_FIPS[state] ?: return emptyList()
+        val url = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/0/query" +
+            "?where=STATE%3D%27$stateCode%27&outFields=BASENAME&returnGeometry=false&orderByFields=BASENAME&f=json"
+        return featureNames(client.get(url), "BASENAME")
+    }
+
     suspend fun countiesForState(state: String): List<String> {
         val stateCode = US_STATE_FIPS[state] ?: return emptyList()
         val url = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query" +
             "?where=STATE%3D%27$stateCode%27&outFields=NAME&returnGeometry=false&orderByFields=NAME&f=json"
-        val features = JSONObject(client.get(url)).getJSONArray("features")
+        return featureNames(client.get(url), "NAME")
+    }
+
+    private fun featureNames(response: String, field: String): List<String> {
+        val features = JSONObject(response).getJSONArray("features")
         return (0 until features.length()).mapNotNull { index ->
-            features.getJSONObject(index).getJSONObject("attributes").optString("NAME")
+            features.getJSONObject(index).getJSONObject("attributes").optString(field)
                 .trim().takeIf(String::isNotBlank)
         }.distinct().sorted()
     }

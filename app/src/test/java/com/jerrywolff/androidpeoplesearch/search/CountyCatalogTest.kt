@@ -42,4 +42,25 @@ class CountyCatalogTest {
         assertTrue(catalog.countiesForState("Not a state").isEmpty())
         assertEquals(0, calls)
     }
+
+    @Test
+    fun citiesForStateUsesOfficialFipsAndReturnsSortedDistinctNames() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val catalog = CountyCatalog(
+            PublicApiClient { url ->
+                requestedUrls += url
+                """{"features":[
+                    {"attributes":{"BASENAME":"Seattle"}},
+                    {"attributes":{"BASENAME":"Bellevue"}},
+                    {"attributes":{"BASENAME":"Seattle"}}
+                ]}"""
+            },
+        )
+
+        val cities = catalog.citiesForState("Washington")
+
+        assertTrue(requestedUrls.single().contains("STATE%3D%2753%27"))
+        assertTrue(requestedUrls.single().contains("outFields=BASENAME"))
+        assertEquals(listOf("Bellevue", "Seattle"), cities)
+    }
 }
