@@ -65,10 +65,12 @@ class PeopleSearchEngine(private val providers: List<SearchProvider> = ProviderC
         }
 
         val initialOutcomes = filter(execute(eligibleProviders, breadthLevel.coerceAtLeast(0)))
-        val fallbackProviders = eligibleProviders.filter { it.id in GENERAL_INDEX_PROVIDER_IDS }
+        val emptyGeneralProviderIds = initialOutcomes
+            .filter { it.providerId in GENERAL_INDEX_PROVIDER_IDS && it.results.isEmpty() }
+            .mapTo(mutableSetOf()) { it.providerId }
+        val fallbackProviders = eligibleProviders.filter { it.id in emptyGeneralProviderIds }
         val fallbackOutcomes = if (
             breadthLevel < 1 &&
-            initialOutcomes.none { it.results.isNotEmpty() } &&
             fallbackProviders.isNotEmpty()
         ) {
             filter(execute(fallbackProviders, breadth = 1))

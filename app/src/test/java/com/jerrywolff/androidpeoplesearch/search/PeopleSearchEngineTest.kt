@@ -329,6 +329,22 @@ class PeopleSearchEngineTest {
         assertEquals(1, report.sourceCounts.single().recordCount)
     }
 
+    @Test
+    fun oneIndexResultDoesNotPreventAnotherEmptyIndexFromBroadening() = runBlocking {
+        val bingBreadths = mutableListOf<Int>()
+        val duckDuckGoBreadths = mutableListOf<Int>()
+        val bing = breadthAwareProvider("bing_web", bingBreadths, resultAtBreadth = 0)
+        val duckDuckGo = breadthAwareProvider("duckduckgo_web", duckDuckGoBreadths, resultAtBreadth = 1)
+
+        val report = PeopleSearchEngine(listOf(bing, duckDuckGo)).searchWithDiagnostics(
+            PeopleSearchQuery(fullName = "Claude Nazon", state = "Florida"),
+        )
+
+        assertEquals(listOf(0), bingBreadths)
+        assertEquals(listOf(0, 1), duckDuckGoBreadths)
+        assertEquals(setOf("bing_web", "duckduckgo_web"), report.results.map { it.providerId }.toSet())
+    }
+
     private fun fakeProvider(
         providerId: String,
         sourceCategory: SourceCategory,
@@ -395,5 +411,41 @@ class PeopleSearchEngineTest {
                 isDirectResult = direct,
             ),
         )
+    }
+
+    private fun breadthAwareProvider(
+        providerId: String,
+        receivedBreadths: MutableList<Int>,
+        resultAtBreadth: Int,
+    ) = object : SearchProvider {
+        override val id = providerId
+        override val displayName = providerId
+        override val category = SourceCategory.WEB
+        override val requiresPayment = false
+        override val requiresAuth = false
+        override val lastVerified = "2026-08-03"
+        override fun buildSearchUrl(query: PeopleSearchQuery): Uri = error("Not used")
+        override suspend fun search(query: PeopleSearchQuery): List<PersonSearchResult> = emptyList()
+        override suspend fun search(
+            query: PeopleSearchQuery,
+            pageDepth: Int,
+            breadthLevel: Int,
+        ): List<PersonSearchResult> {
+            receivedBreadths += breadthLevel
+            if (breadthLevel != resultAtBreadth) return emptyList()
+            return listOf(
+                PersonSearchResult(
+                    id = "$providerId-$breadthLevel",
+                    providerId = providerId,
+                    title = "Claude Nazon - Florida public profile",
+                    description = "Source-observed public profile",
+                    url = "https://example.com/$providerId/claude-nazon",
+                    sourceName = providerId,
+                    category = category,
+                    confidence = ConfidenceLevel.MEDIUM,
+                    confidenceScore = 52,
+                ),
+            )
+        }
     }
 }
