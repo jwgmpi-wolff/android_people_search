@@ -507,6 +507,52 @@ class DirectApiProviderTest {
     }
 
     @Test
+    fun githubProfileUrlReturnsSourceObservedPublicDetails() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val provider = GitHubUsersApiProvider(
+            PublicApiClient { url ->
+                requestedUrls += url
+                """{
+                    "id":583231,"login":"octocat","name":"The Octocat","type":"User",
+                    "company":"GitHub","location":"San Francisco","blog":"https://github.blog",
+                    "bio":"Public open source profile","public_repos":8,"followers":18000,
+                    "html_url":"https://github.com/octocat"
+                }"""
+            },
+        )
+
+        val result = provider.search(
+            PeopleSearchQuery(freeText = "Review https://github.com/octocat"),
+            pageDepth = 5,
+        ).single()
+
+        assertEquals(listOf("https://api.github.com/users/octocat"), requestedUrls)
+        assertEquals("The Octocat", result.title)
+        assertTrue(result.description.contains("@octocat"))
+        assertTrue(result.description.contains("Public open source profile"))
+        assertTrue(result.description.contains("GitHub"))
+        assertTrue(result.description.contains("San Francisco"))
+        assertTrue(result.description.contains("https://github.blog"))
+        assertTrue(result.description.contains("8 public repositories"))
+        assertTrue(result.description.contains("18,000 followers"))
+        assertEquals("https://github.com/octocat", result.url)
+    }
+
+    @Test
+    fun inaccessibleGitHubProfileUrlReturnsNoRecord() = runBlocking {
+        val provider = GitHubUsersApiProvider(
+            PublicApiClient { throw PublicApiHttpException(404) },
+        )
+
+        val results = provider.search(
+            PeopleSearchQuery(freeText = "https://github.com/atiy_microsoft"),
+            pageDepth = 1,
+        )
+
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
     fun github_exposesApiFailureToTheSearchEngine() = runBlocking {
         val provider = GitHubUsersApiProvider(PublicApiClient { error("rate limited") })
 

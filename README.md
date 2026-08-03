@@ -28,6 +28,7 @@ adb install -r android-people-search-1.1.0.apk
 - A social-source multi-select defaults to all and supports Select all or individual Facebook, Instagram, Threads, X, Bluesky, LinkedIn, Snapchat, TikTok, Pinterest, and Mastodon public-page searches
 - A persisted 1–5 page-depth setting controls direct retrieval (up to 20 records per page and 100 per source)
 - Returned candidates must contain the requested identity; populated details refine provider queries and rank source-observed matches without hiding exact-name records whose snippets omit those details
+- Explicit public GitHub profile URLs retrieve public professional profile details directly; anonymous `404`, SSO-only, and authenticated profiles are not bypassed
 - Results default to alphabetical order, support alternate sorting, and can be filtered by selecting a source-count chip
 - Deterministic on-device query refinement, normalization, duplicate removal, confidence scoring, explanations, and summaries
 - Deterministic on-device assistant with no cloud dependency

@@ -358,6 +358,9 @@ Create `DirectApiProvider` that:
 ### GitHub public users
 
 - ID `github`; display name `GitHub public users`; category `PROFESSIONAL`.
+- When free text contains an explicit `github.com/{handle}` profile URL, make one anonymous `https://api.github.com/users/{handle}` request instead of user search.
+- Display only source-observed public login, name, bio, company, location, website, public repository count, follower count, and `html_url`. Do not include email or infer missing fields.
+- Treat HTTP 404 as no public record. Do not follow enterprise SSO, authenticate, scrape protected profiles, or fabricate a result.
 - Search username first; otherwise compact the person name to lowercase alphanumeric; otherwise use free text.
 - Use `https://api.github.com/search/users` with `per_page=20` and page pagination.
 - Parse numeric ID, login, and `html_url`.

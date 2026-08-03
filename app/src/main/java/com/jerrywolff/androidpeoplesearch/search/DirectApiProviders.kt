@@ -455,6 +455,15 @@ class GitHubUsersApiProvider(client: PublicApiClient = HttpPublicApiClient()) : 
     }, client = client,
 ) {
     override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> = buildList {
+        query.githubProfileHandle()?.let { handle ->
+            val profile = try {
+                JSONObject(client.get("https://api.github.com/users/${ProviderUrlBuilder.encode(handle)}"))
+            } catch (failure: PublicApiHttpException) {
+                if (failure.statusCode == 404) return@buildList else throw failure
+            }
+            add(githubProfileResult(query, profile))
+            return@buildList
+        }
         val search = query.username.ifBlank {
             query.personName().compactHandleQuery().ifBlank { query.freeText }
         }
@@ -469,7 +478,42 @@ class GitHubUsersApiProvider(client: PublicApiClient = HttpPublicApiClient()) : 
             if (items.length() < PAGE_SIZE) return@buildList
         }
     }
+
+    private fun githubProfileResult(
+        query: PeopleSearchQuery,
+        profile: JSONObject,
+    ): PersonSearchResult {
+        val login = profile.getString("login")
+        val description = buildList {
+            add("@$login")
+            profile.publicText("bio")?.let(::add)
+            profile.publicText("company")?.let { add("Company: $it") }
+            profile.publicText("location")?.let { add("Location: $it") }
+            profile.publicText("blog")?.let { add("Website: $it") }
+            if (profile.has("public_repos")) {
+                add("${profile.optInt("public_repos")} public repositories")
+            }
+            if (profile.has("followers")) {
+                add("${String.format(Locale.US, "%,d", profile.optInt("followers"))} followers")
+            }
+        }.joinToString(" · ")
+        return result(
+            query.copy(username = login, freeText = ""),
+            profile.getLong("id").toString(),
+            profile.publicText("name") ?: login,
+            description,
+            profile.getString("html_url"),
+        )
+    }
 }
+
+private fun PeopleSearchQuery.githubProfileHandle(): String? =
+    Regex(
+        "(?i)(?:https?://)?(?:www\\.)?github\\.com/([a-z0-9_-]{1,100})(?:[/?#\\s]|$)",
+    ).find(freeText)?.groupValues?.get(1)
+
+private fun JSONObject.publicText(field: String): String? =
+    optString(field).trim().takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
 
 private fun String.compactHandleQuery(): String = lowercase(Locale.ROOT).filter(Char::isLetterOrDigit)
 
