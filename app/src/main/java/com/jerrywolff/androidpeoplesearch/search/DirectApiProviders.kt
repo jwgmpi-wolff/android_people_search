@@ -139,25 +139,46 @@ class SelectedSocialReferencesProvider(client: PublicApiClient = HttpPublicApiCl
     id = "selected_social_references",
     displayName = "Selected social public references",
     category = SourceCategory.SOCIAL,
-    sourceUrl = { query -> ProviderUrlBuilder.query("https://www.bing.com/search", "q", query.socialIndexQuery()) },
+    sourceUrl = { query ->
+        ProviderUrlBuilder.query(
+            "https://www.bing.com/search",
+            "q",
+            query.socialIndexQueries().firstOrNull().orEmpty(),
+        )
+    },
     client = client,
 ) {
     override suspend fun fetchPages(query: PeopleSearchQuery, pageDepth: Int): List<PersonSearchResult> {
-        val search = query.socialIndexQuery()
-        if (search.isBlank()) return emptyList()
-        return buildList {
+        val searches = query.socialIndexQueries()
+        if (searches.isEmpty()) return emptyList()
+        val results = mutableListOf<PersonSearchResult>()
+        var lastFailure: Throwable? = null
+        searches.forEach { search ->
             for (pageIndex in 0 until pageDepth) {
-                val first = pageIndex * 10 + 1
-                val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
-                val items = parseRssItems(client.get(url))
-                items.filterNot { it.url.isProhibitedReference() }
-                    .filter { it.url.isSelectedSocialReference(query) }
-                    .forEach { item ->
-                    add(result(query, item.url.hashCode().toString(), item.title, cleanHtml(item.description), item.url))
+                try {
+                    val first = pageIndex * 10 + 1
+                    val url = "https://www.bing.com/search?q=${ProviderUrlBuilder.encode(search)}&format=rss&first=$first"
+                    val items = parseRssItems(client.get(url))
+                    items.filterNot { it.url.isProhibitedReference() }
+                        .filter { it.url.isSelectedSocialReference(query) }
+                        .forEach { item ->
+                            results += result(
+                                query,
+                                item.url.hashCode().toString(),
+                                item.title,
+                                cleanHtml(item.description),
+                                item.url,
+                            )
+                        }
+                    if (items.size < 10) break
+                } catch (failure: Throwable) {
+                    lastFailure = failure
+                    break
                 }
-                if (items.size < 10) break
             }
-        }.distinctBy { it.url }
+        }
+        if (results.isEmpty()) lastFailure?.let { throw it }
+        return results.distinctBy { it.url }
     }
 }
 
@@ -166,17 +187,24 @@ private fun String.isSelectedSocialReference(query: PeopleSearchQuery): Boolean 
     query.socialPlatforms.any { it.matchesHost(host) }
 }.getOrDefault(false)
 
-private fun PeopleSearchQuery.socialIndexQuery(): String {
-    if (socialPlatforms.isEmpty()) return ""
-    val identity = listOf(personName(), city, state, username)
+private fun PeopleSearchQuery.socialIndexQueries(): List<String> {
+    val exactIdentity = listOf(
+        personName().takeIf(String::isNotBlank)?.let { "\"$it\"" }.orEmpty(),
+        username,
+    ).filter(String::isNotBlank).joinToString(" ")
+    if (exactIdentity.isBlank()) return emptyList()
+    val refinedIdentity = listOf(exactIdentity, city, county, state, country, company)
         .filter(String::isNotBlank)
         .joinToString(" ")
-    if (identity.isBlank()) return ""
-    val sites = socialPlatforms
+    return socialPlatforms
         .flatMap(SocialPlatform::domains)
         .sorted()
-        .joinToString(" OR ") { "site:$it" }
-    return "$identity ($sites)"
+        .flatMap { domain ->
+            listOf(
+                "$refinedIdentity site:$domain",
+                "$exactIdentity site:$domain",
+            ).distinct()
+        }
 }
 
 private fun PeopleSearchQuery.bingReferenceQuery(linkedInOnly: Boolean): String = listOf(

@@ -351,7 +351,8 @@ Create `DirectApiProvider` that:
 ### Selected social public references
 
 - Add a multi-select query field and Compose dropdown for Facebook, Instagram, Threads, X, Bluesky, LinkedIn, Snapchat, TikTok, Pinterest, and Mastodon; default to all and provide Select all.
-- Query Bing RSS with the requested identity plus combined `site:` constraints for only selected domains.
+- Query every selected domain independently through Bing RSS. For each domain, run a populated-field identity/location/company query and an exact-name or username fallback, each at the configured page depth.
+- Preserve successful records when a later selected domain or page fails; report failure only when no selected-domain request produced records.
 - Keep only HTTPS records whose destination host belongs to a selected platform, then apply the mandatory source-observed identity gate.
 - Do not execute direct LinkedIn or Bluesky providers when their platforms are deselected. Do not scrape accounts, authenticated pages, private content, or CAPTCHA-protected pages.
 

@@ -26,6 +26,7 @@ adb install -r android-people-search-1.1.0.apk
 - Each compliant Bing or DuckDuckGo index that finds no identity-matched records independently runs broader live queries without relaxing identity evidence
 - County filtering, U.S. state and country selectors, and an on-device search-assistant chat for applying conversational specifics
 - A social-source multi-select defaults to all and supports Select all or individual Facebook, Instagram, Threads, X, Bluesky, LinkedIn, Snapchat, TikTok, Pinterest, and Mastodon public-page searches
+- Every checked social domain receives independent refined and exact-identity public-index requests at the configured depth; partial successes remain visible if another domain is unavailable
 - A persisted 1–5 page-depth setting controls direct retrieval (up to 20 records per page and 100 per source)
 - Returned candidates must contain the requested identity; populated details refine provider queries and rank source-observed matches without hiding exact-name records whose snippets omit those details
 - Explicit public GitHub profile URLs retrieve public professional profile details directly; anonymous `404`, SSO-only, and authenticated profiles are not bypassed

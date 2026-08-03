@@ -31,10 +31,30 @@ class DirectApiProviderTest {
             pageDepth = 5,
         )
 
-        assertTrue(requestedUrls.single().contains("site%3Ainstagram.com"))
-        assertTrue(requestedUrls.single().contains("site%3Asnapchat.com"))
-        assertTrue(requestedUrls.single().contains("site%3Afacebook.com").not())
+        assertEquals(2, requestedUrls.size)
+        assertTrue(requestedUrls.single { it.contains("site%3Ainstagram.com") }.contains("site%3Asnapchat.com").not())
+        assertTrue(requestedUrls.single { it.contains("site%3Asnapchat.com") }.contains("site%3Ainstagram.com").not())
+        assertTrue(requestedUrls.none { it.contains("site%3Afacebook.com") })
         assertEquals(listOf("https://www.instagram.com/alexiswolff"), results.map { it.url })
+    }
+
+    @Test
+    fun selectedSocialReferencesQueryEveryDomainWhenAllAreChecked() = runBlocking {
+        val requestedUrls = mutableListOf<String>()
+        val provider = SelectedSocialReferencesProvider(
+            PublicApiClient { url ->
+                requestedUrls += url
+                "<?xml version=\"1.0\"?><rss><channel/></rss>"
+            },
+        )
+
+        provider.search(PeopleSearchQuery(fullName = "Alexis Wolff"), pageDepth = 5)
+
+        val expectedDomains = SocialPlatform.entries.flatMap(SocialPlatform::domains).toSet()
+        assertEquals(expectedDomains.size, requestedUrls.size)
+        expectedDomains.forEach { domain ->
+            assertEquals(1, requestedUrls.count { it.contains("site%3A$domain") })
+        }
     }
 
     @Test
