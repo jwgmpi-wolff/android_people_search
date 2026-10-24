@@ -7,13 +7,22 @@ Results are leads, not verified identities. The app labels confidence, links to 
 <!-- project-downloads:start -->
 ## APK and installer downloads
 
-| Package | Download | Source |
+Every available project package is indexed below, including older versions. Prefer the newest stable version for your platform and architecture. Debug APKs and prereleases are labeled; archives are not necessarily standalone installers.
+
+### Release downloads: all published versions
+
+| Version / source | Package | Download |
 | --- | --- | --- |
-| Android APK | [android-people-search-1.1.0.apk](https://github.com/jwgmpi-wolff/android_people_search/releases/download/v1.1.0/android-people-search-1.1.0.apk) | v1.1.0 |
+| v1.1.0 | Android APK | [android-people-search-1.1.0.apk](https://github.com/jwgmpi-wolff/android_people_search/releases/download/v1.1.0/android-people-search-1.1.0.apk) |
+| v1.0.0 | Android APK | [android-people-search-1.0.0.apk](https://github.com/jwgmpi-wolff/android_people_search/releases/download/v1.0.0/android-people-search-1.0.0.apk) |
 
-Android may require approval to install apps from this download source. Debug APKs are labeled above. Windows executables that are not setup packages may require accompanying project files; follow the project-specific instructions below.
+### Setup scripts and source
 
-- [Download the complete source ZIP](https://github.com/jwgmpi-wolff/android_people_search/archive/refs/heads/main.zip).
+
+- [Download the complete source ZIP](https://github.com/jwgmpi-wolff/android_people_search/archive/refs/heads/main.zip). Extract the complete checkout before running setup scripts unless the project instructions explicitly support standalone installation.
+- [Browse all releases and their assets](https://github.com/jwgmpi-wolff/android_people_search/releases).
+
+Android may require approval to install apps from the download source. Follow the project-specific installation, signing, checksum, and prerequisite instructions elsewhere in this README.
 <!-- project-downloads:end -->
 
 ## Direct download
