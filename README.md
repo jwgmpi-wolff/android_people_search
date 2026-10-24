@@ -4,6 +4,18 @@ A native Android app that generates attributed search targets for free, legally 
 
 Results are leads, not verified identities. The app labels confidence, links to every source, keeps history off by default, and provides a clear-local-data action.
 
+<!-- project-downloads:start -->
+## APK and installer downloads
+
+| Package | Download | Source |
+| --- | --- | --- |
+| Android APK | [android-people-search-1.1.0.apk](https://github.com/jwgmpi-wolff/android_people_search/releases/download/v1.1.0/android-people-search-1.1.0.apk) | v1.1.0 |
+
+Android may require approval to install apps from this download source. Debug APKs are labeled above. Windows executables that are not setup packages may require accompanying project files; follow the project-specific instructions below.
+
+- [Download the complete source ZIP](https://github.com/jwgmpi-wolff/android_people_search/archive/refs/heads/main.zip).
+<!-- project-downloads:end -->
+
 ## Direct download
 
 Download the installable Android APK from either repository mirror:
@@ -137,3 +149,9 @@ The workspace includes the complete [`/regenerate-android-people-search`](.githu
 Paginated direct APIs request the configured 1–5 pages and stop early when a source returns a short page. Bing public references, indexed public LinkedIn references, and official county public records are grouped as publicly accessible records while retaining separate provenance labels. Bing runs both the populated-field query and exact-identity fallback for the configured depth, then deduplicates their URLs; domain and assistant context participate in the refined query, and successful earlier records remain visible if a later page is unavailable. Resubmitting unchanged fields triggers fresh broader passes: an unquoted name/location query similar to an interactive browser search; a social-profile query across Facebook, Instagram, Threads, X, Bluesky, and Mastodon; an authoritative `.gov/.edu/.org` query; academic/author profiles; and finally supplemental GitHub/Stack Overflow references. LinkedIn receives its own unquoted constrained pass, and every direct provider is queried live again. Web and social sources are presented first; GitHub and Stack Overflow are always ranked after other matching sources, including when Bing indexes their URLs. Results still require source-observed identity evidence. This preserves exact-name public records when an index snippet omits employer or location details. Selecting any U.S. state or D.C. loads its official county or county-equivalent names from Census TIGERweb; manual entry remains available. For every selected county, the app runs a broad exact-name official `.gov` search plus a public-record document search covering records, agendas, minutes, notices, boards, commissions, court references, dockets, permits, licenses, elections, and contracts. This is not limited to county employees. The King County provider additionally submits its official exact-name employee-directory form as a separate direct source and returns public work identity fields, excluding phone and mailstop data. Bing RSS does not scrape LinkedIn or require credentials. Prohibited people-finder, contact-enrichment, commercial report-generation, property-owner, and private-address sources are filtered. After retrieval, the app requires source-observed identity evidence. Populated company, location, domain, country, username, and free-text fields refine provider requests and increase confidence only when observed in source content; they are never copied into descriptions to manufacture evidence. Clean no-match sources show `0 found`; failures distinguish `Rate limited`, `Timed out`, `Source unavailable`, and other unavailable conditions. Search forms themselves are excluded from results. The app does not crawl, bypass login, or access private profiles.
 
 Every assistant feature runs through deterministic local logic without a network or device-model dependency.
+
+## Copyright
+
+Copyright (c) 2026 Jerry Wolff. See [COPYRIGHT](COPYRIGHT) for the scope of this
+notice. Existing licenses and third-party attribution remain unchanged; this
+notice does not grant additional permissions.
